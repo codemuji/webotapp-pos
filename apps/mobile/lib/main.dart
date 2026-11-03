@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'src/cart/cart_screen.dart';
+import 'src/checkout/checkout_dialog.dart';
+import 'src/providers.dart';
+import 'src/scanner/barcode_scanner_screen.dart';
 
 void main() {
   runApp(
@@ -10,11 +13,13 @@ void main() {
   );
 }
 
-class GroceryPosMobileApp extends StatelessWidget {
+class GroceryPosMobileApp extends ConsumerWidget {
   const GroceryPosMobileApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final db = ref.watch(databaseProvider);
+
     return MaterialApp(
       title: 'Grocery POS Mobile',
       debugShowCheckedModeBanner: false,
@@ -26,7 +31,27 @@ class GroceryPosMobileApp extends StatelessWidget {
         ),
         fontFamily: 'Roboto',
       ),
-      home: const CartScreen(),
+      home: Builder(
+        builder: (context) => CartScreen(
+          onScanPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => BarcodeScannerScreen(
+                  database: db,
+                ),
+              ),
+            );
+          },
+          onCheckoutPressed: () {
+            showTactileCheckoutDialog(
+              context: context,
+              database: db,
+              employeeId: 'emp-001',
+              deviceId: 'term-mobile-01',
+            );
+          },
+        ),
+      ),
     );
   }
 }
