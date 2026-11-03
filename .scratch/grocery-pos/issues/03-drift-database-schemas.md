@@ -15,3 +15,4 @@ ready-for-agent
 - [ ] `invoice_items` captures frozen point-in-time values for product name, unit price, and tax amounts.
 - [ ] Drift code generation (`build_runner`) produces type-safe queries and DAOs.
 - [ ] In-memory SQLite unit test suite asserts atomic transaction commits and rollbacks on failure.
+

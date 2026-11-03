@@ -14,3 +14,4 @@ ready-for-agent
 - [ ] Support for direct backup export to USB flash drives.
 - [ ] Database restoration integrity checks verify table schemas before replacing the active database.
 - [ ] End-to-end offline verification: cashiers complete sales while desktop server is killed; all pending sales sync cleanly once server restarts.
+

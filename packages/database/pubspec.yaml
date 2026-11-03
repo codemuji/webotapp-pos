@@ -1,15 +1,21 @@
 name: database
-description: A starting point for Dart libraries or applications.
+description: Offline-first Drift SQLite database schemas and persistence for Grocery POS.
 version: 1.0.0
-# repository: https://github.com/my_org/my_repo
 
 environment:
   sdk: ^3.10.4
 
-# Add regular dependencies here.
 dependencies:
-  # path: ^1.9.0
+  billing_engine:
+    path: ../billing_engine
+  sync_protocol:
+    path: ../sync_protocol
+  drift: ^2.24.2
+  sqlite3: ^2.4.6
+  path: ^1.9.1
 
 dev_dependencies:
+  build_runner: ^2.4.14
+  drift_dev: ^2.24.2
   lints: ^6.0.0
   test: ^1.25.6

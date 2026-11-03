@@ -140,3 +140,4 @@ Grocery POS delivers an offline-first, dual-application point-of-sale ecosystem 
 
 - The system uses standard local Wi-Fi. If a store does not have a router, a mobile terminal's Wi-Fi Hotspot can be used as the local subnet, with the Windows laptop connecting to the hotspot.
 - Invoices are legally compliant point-of-sale receipts with configurable tax registration (GSTIN), store name, and sequential numbering series.
+

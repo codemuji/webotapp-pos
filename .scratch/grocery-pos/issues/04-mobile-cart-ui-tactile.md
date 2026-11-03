@@ -15,3 +15,4 @@ ready-for-agent
 - [ ] Numpad modal enters with `scale(0.95)` to `1.0` and opacity fade (never from `scale(0)`).
 - [ ] Cart totals update instantaneously (< 16ms) via Riverpod without full-screen rebuilds.
 - [ ] Widget test suite verifies tactile button transforms and optimistic cart calculations.
+

@@ -15,3 +15,4 @@ ready-for-agent
 - [ ] Category taxonomy hierarchy management.
 - [ ] Employee management allows setting 4-digit PINs and role assignments.
 - [ ] Thermal product barcode and QR label generator with print preview.
+

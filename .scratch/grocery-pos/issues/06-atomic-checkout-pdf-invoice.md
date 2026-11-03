@@ -15,3 +15,4 @@ ready-for-agent
 - [ ] PDF receipt renders with clean thermal layout (58mm/80mm) and standard A4 invoice format.
 - [ ] Integration with `share_plus` exposes native WhatsApp, Bluetooth printer, and Android share sheet.
 - [ ] Successful checkout places the transaction into `sync_queue` with `pending` status.
+

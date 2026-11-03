@@ -12,3 +12,4 @@ We choose an offline-first architecture using native SQLite abstracted via **Dri
 ## Consequences
 - **Positive:** Zero dependency on cloud uptime. Zero monthly subscription costs. Transactions never fail due to network interruptions. Fast local query performance (< 5ms).
 - **Negative:** Schema migrations must be managed carefully across distributed standalone devices. State synchronization must be handled explicitly peer-to-peer.
+

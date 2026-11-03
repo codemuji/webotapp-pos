@@ -30,3 +30,4 @@ This document is the authoritative domain vocabulary for Grocery POS. All specif
 
 - **Drift Database:** Type-safe, reactive Dart abstraction layer over native SQLite (`drift` / `sqlite3`).
 - **Shelf Sync Server:** Lightweight asynchronous HTTP daemon embedded directly inside the Flutter Windows Desktop application.
+

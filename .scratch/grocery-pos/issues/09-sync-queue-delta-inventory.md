@@ -15,3 +15,4 @@ ready-for-agent
 - [ ] Central inventory updates via Delta Inventory Movements (`inventory_movements`), preventing overwrite bugs when multiple offline terminals sell the same SKU.
 - [ ] Mobile terminals pull updated product catalogs and prices upon sync completion.
 - [ ] Concurrency and retry integration tests verify zero lost sales and zero duplicates.
+

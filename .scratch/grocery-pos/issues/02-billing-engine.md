@@ -15,3 +15,4 @@ ready-for-agent
 - [ ] Configurable tax tiers (tax-inclusive and tax-exclusive modes).
 - [ ] Mathematical rounding strategies conform to standard financial rounding rules.
 - [ ] 100% test coverage with automated unit tests for zero amounts, 100% discount, fractional quantities, and multi-tier tax computation.
+

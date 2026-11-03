@@ -58,3 +58,4 @@ When writing or reviewing any UI widget in Mobile or Desktop:
 | Dialog popping from `scale(0)` | Fade + subtle scale from `0.95` to `1.0` | Natural physical emergence; avoids popping from nowhere |
 | `Curves.easeIn` on menus | `Curves.easeOutCubic` (160ms - 200ms) | Ease-in feels sluggish; ease-out responds immediately |
 | Long spinner waiting for SQLite | Optimistic UI update with background write | UI remains 60fps responsive; disk writes are asynchronous |
+

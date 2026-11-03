@@ -12,3 +12,4 @@ We implement a lightweight local REST API on the Windows Desktop using `Dart She
 ## Consequences
 - **Positive:** No external server needed. High throughput over standard Wi-Fi router. Low resource footprint on Windows. Resilient to dropped packets with automatic retries.
 - **Negative:** Dependent on local subnet connectivity between mobile devices and the desktop machine. Changing router IPs requires dynamic mDNS discovery or re-pairing scan.
+

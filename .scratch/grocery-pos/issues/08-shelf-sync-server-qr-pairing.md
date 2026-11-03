@@ -15,3 +15,4 @@ ready-for-agent
 - [ ] Mobile terminal pairing screen scans QR code, validates handshake, and receives bearer token.
 - [ ] Pairing tokens securely saved in `flutter_secure_storage` on mobile.
 - [ ] Server rejects unauthenticated HTTP requests from unpaired devices.
+

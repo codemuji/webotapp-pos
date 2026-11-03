@@ -14,3 +14,4 @@ ready-for-agent
 - [ ] Duplicate scan detection increments existing cart item quantity instantly without jarring UI animation.
 - [ ] Haptic pulse and audio feedback trigger within 50ms of barcode detection.
 - [ ] Manual search sheet allows immediate product lookup by name or SKU when barcodes are damaged.
+

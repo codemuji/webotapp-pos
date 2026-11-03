@@ -13,3 +13,4 @@ Mobile terminals must NEVER overwrite the central stock quantity with an absolut
 ## Consequences
 - **Positive:** Mathematically sound offline concurrency. Prevents lost sales updates and stock overwrites. Full audit trail of who sold what, when, and from which terminal.
 - **Negative:** If a store is near zero stock, offline devices might temporarily oversell before resynchronizing.
+

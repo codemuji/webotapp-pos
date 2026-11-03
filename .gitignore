@@ -41,3 +41,4 @@ migrate_working_dir/
 # Windows related
 **/windows/flutter/ephemeral/
 **/windows/flutter/CMakeLists.txt.user
+
