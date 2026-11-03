@@ -45,6 +45,15 @@ class AppDatabase extends _$AppDatabase {
     return (select(products)..where((tbl) => tbl.isActive.equals(true))).get();
   }
 
+  Future<List<Product>> searchProducts(String query) {
+    final term = '%$query%';
+    return (select(products)
+          ..where((tbl) =>
+              tbl.isActive.equals(true) &
+              (tbl.name.like(term) | tbl.barcode.like(term) | tbl.sku.like(term))))
+        .get();
+  }
+
   // Invoice DAOs
   Future<List<InvoiceItem>> getItemsForInvoice(String invoiceId) {
     return (select(invoiceItems)..where((tbl) => tbl.invoiceId.equals(invoiceId))).get();

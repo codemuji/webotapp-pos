@@ -9,10 +9,12 @@ import 'quantity_numpad_dialog.dart';
 /// Zero-layout-shift fixed rows, tactile micro-feedback on buttons, and high-contrast totals.
 class CartScreen extends ConsumerWidget {
   final VoidCallback? onCheckoutPressed;
+  final VoidCallback? onScanPressed;
 
   const CartScreen({
     super.key,
     this.onCheckoutPressed,
+    this.onScanPressed,
   });
 
   @override
@@ -30,6 +32,15 @@ class CartScreen extends ConsumerWidget {
         foregroundColor: const Color(0xFF0F172A),
         elevation: 0,
         actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 4.0),
+            child: TactileButton(
+              onPressed: onScanPressed,
+              minWidth: 44,
+              minHeight: 44,
+              child: const Icon(Icons.qr_code_scanner_rounded, color: Color(0xFF0F172A)),
+            ),
+          ),
           if (cart.items.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
@@ -43,7 +54,7 @@ class CartScreen extends ConsumerWidget {
         ],
       ),
       body: cart.items.isEmpty
-          ? const _EmptyCartView()
+          ? _EmptyCartView(onScanPressed: onScanPressed)
           : Column(
               children: [
                 Expanded(
@@ -71,7 +82,9 @@ class CartScreen extends ConsumerWidget {
 }
 
 class _EmptyCartView extends StatelessWidget {
-  const _EmptyCartView();
+  final VoidCallback? onScanPressed;
+
+  const _EmptyCartView({this.onScanPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -108,6 +121,36 @@ class _EmptyCartView extends StatelessWidget {
               color: Color(0xFF64748B),
             ),
           ),
+          if (onScanPressed != null) ...[
+            const SizedBox(height: 24),
+            TactileButton(
+              onPressed: onScanPressed,
+              minWidth: 160,
+              minHeight: 48,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Start Scanning',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

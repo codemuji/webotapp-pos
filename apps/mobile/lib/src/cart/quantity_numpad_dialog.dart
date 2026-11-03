@@ -309,3 +309,4 @@ class _QuantityNumpadDialogContentState extends State<_QuantityNumpadDialogConte
     );
   }
 }
+

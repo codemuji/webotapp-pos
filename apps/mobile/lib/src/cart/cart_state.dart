@@ -92,6 +92,7 @@ class CartState {
   Decimal get totalTax => calculationResult.totalTax;
   Decimal get totalAmount => calculationResult.totalAmount;
   Decimal get roundedTotal => calculationResult.roundedTotal;
+  Decimal get netPayable => roundedTotal;
   Decimal get roundingAdjustment => calculationResult.roundingAdjustment;
 
   CartState copyWith({
@@ -217,3 +218,4 @@ class CartNotifier extends StateNotifier<CartState> {
 final cartProvider = StateNotifierProvider<CartNotifier, CartState>((ref) {
   return CartNotifier();
 });
+
