@@ -26,3 +26,4 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Set-Location "$PSScriptRoot/.."
 Write-Host "=== All monorepo tests passed! ===" -ForegroundColor Green
+
