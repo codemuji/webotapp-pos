@@ -7,11 +7,10 @@ Automated scheduled SQLite database backups to local Windows directories, manual
 09: Idempotent Sync Queue & Delta Inventory Reconciliation
 
 **Status:**
-ready-for-agent
+resolved
 
 **Acceptance Criteria:**
-- [ ] Windows admin can trigger manual database backup and configure automated daily backups.
-- [ ] Support for direct backup export to USB flash drives.
-- [ ] Database restoration integrity checks verify table schemas before replacing the active database.
-- [ ] End-to-end offline verification: cashiers complete sales while desktop server is killed; all pending sales sync cleanly once server restarts.
-
+- [x] Windows admin can trigger manual database backup and configure automated daily backups.
+- [x] Support for direct backup export to USB flash drives.
+- [x] Database restoration integrity checks verify table schemas before replacing the active database.
+- [x] End-to-end offline verification: cashiers complete sales while desktop server is killed; all pending sales sync cleanly once server restarts.

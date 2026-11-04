@@ -1,6 +1,7 @@
 import 'package:database/database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'src/backup/backup_restore_screen.dart';
 import 'src/catalog/product_catalog_screen.dart';
 import 'src/dashboard/admin_dashboard_screen.dart';
 import 'src/employees/employee_management_screen.dart';
@@ -60,6 +61,7 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
       ProductCatalogScreen(database: db),
       EmployeeManagementScreen(database: db),
       SyncServerScreen(database: db, storeName: 'FreshMart Store'),
+      BackupRestoreScreen(database: db, isSimulationMode: true),
     ];
 
     return Scaffold(
@@ -110,6 +112,11 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
                 icon: Icon(Icons.sync_rounded),
                 selectedIcon: Icon(Icons.sync),
                 label: Text('Terminals'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.backup_outlined),
+                selectedIcon: Icon(Icons.backup),
+                label: Text('Backups'),
               ),
             ],
           ),

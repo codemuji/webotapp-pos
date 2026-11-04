@@ -8,8 +8,6 @@ environment:
 dependencies:
   billing_engine:
     path: ../billing_engine
-  sync_protocol:
-    path: ../sync_protocol
   drift: ^2.24.2
   sqlite3: ^2.4.6
   path: ^1.9.1

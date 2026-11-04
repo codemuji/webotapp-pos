@@ -185,7 +185,7 @@ class AppDatabase extends _$AppDatabase {
   // Sync Queue DAOs
   Future<List<SyncQueueData>> getPendingSyncItems() {
     return (select(syncQueue)
-          ..where((tbl) => tbl.status.equals('pending'))
+          ..where((tbl) => tbl.status.equals('pending') | tbl.status.equals('error'))
           ..orderBy([(tbl) => OrderingTerm.asc(tbl.createdAt)]))
         .get();
   }

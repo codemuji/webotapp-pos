@@ -31,5 +31,10 @@ void main() {
     await tester.tap(find.text('Employees'));
     await tester.pumpAndSettle();
     expect(find.text('Employee & Security Management'), findsOneWidget);
+
+    // Switch to Backups
+    await tester.tap(find.text('Backups'));
+    await tester.pumpAndSettle();
+    expect(find.text('Database Backup & Restore'), findsOneWidget);
   });
 }
