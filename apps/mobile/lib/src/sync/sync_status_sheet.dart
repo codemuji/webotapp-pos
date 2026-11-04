@@ -1,0 +1,326 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../widgets/tactile_button.dart';
+import 'sync_coordinator.dart';
+import 'terminal_storage.dart';
+
+/// Displays the offline synchronization status sheet implementing Emil Kowalski
+/// micro-interaction patterns: tactile buttons, clear typography, and fixed metric heights.
+Future<void> showSyncStatusSheet({
+  required BuildContext context,
+  required SyncCoordinator coordinator,
+  required TerminalStorage storage,
+  VoidCallback? onPairNewServer,
+}) {
+  return showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) => _SyncStatusSheetContent(
+      coordinator: coordinator,
+      storage: storage,
+      onPairNewServer: onPairNewServer,
+    ),
+  );
+}
+
+class _SyncStatusSheetContent extends StatefulWidget {
+  final SyncCoordinator coordinator;
+  final TerminalStorage storage;
+  final VoidCallback? onPairNewServer;
+
+  const _SyncStatusSheetContent({
+    required this.coordinator,
+    required this.storage,
+    this.onPairNewServer,
+  });
+
+  @override
+  State<_SyncStatusSheetContent> createState() => _SyncStatusSheetContentState();
+}
+
+class _SyncStatusSheetContentState extends State<_SyncStatusSheetContent> {
+  bool _isLoading = false;
+  String? _storeName;
+  String? _serverUrl;
+  bool _isPaired = false;
+  int _pendingCount = 0;
+  String? _feedbackMessage;
+  bool _isFeedbackSuccess = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadState();
+  }
+
+  Future<void> _loadState() async {
+    final paired = await widget.storage.isPaired();
+    final name = await widget.storage.getStoreName();
+    final url = await widget.storage.getServerUrl();
+    final pending = await widget.coordinator.getPendingCount();
+
+    if (mounted) {
+      setState(() {
+        _isPaired = paired;
+        _storeName = name ?? (paired ? 'Connected Store' : 'Unpaired Terminal');
+        _serverUrl = url ?? 'Not Connected';
+        _pendingCount = pending;
+      });
+    }
+  }
+
+  Future<void> _handleSyncNow() async {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isLoading = true;
+      _feedbackMessage = null;
+    });
+
+    final result = await widget.coordinator.runSync();
+    final newPending = await widget.coordinator.getPendingCount();
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _pendingCount = newPending;
+        _feedbackMessage = result.message;
+        _isFeedbackSuccess = result.state == SyncState.success;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Sync Server Status',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _storeName ?? 'Loading...',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _isPaired ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: _isPaired ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _isPaired ? 'PAIRED' : 'UNPAIRED',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: _isPaired ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Server details & Pending count card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Desktop Node:',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                    ),
+                    Text(
+                      _serverUrl ?? '-',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 20, color: Color(0xFFE2E8F0)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Pending Offline Sales:',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _pendingCount > 0 ? const Color(0xFFFEF3C7) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '$_pendingCount queued',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: _pendingCount > 0 ? const Color(0xFFD97706) : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          if (_feedbackMessage != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _isFeedbackSuccess ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _isFeedbackSuccess ? const Color(0xFFBBF7D0) : const Color(0xFFFECACA),
+                ),
+              ),
+              child: Text(
+                _feedbackMessage!,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: _isFeedbackSuccess ? const Color(0xFF15803D) : const Color(0xFFB91C1C),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 24),
+
+          // Action buttons
+          TactileButton(
+            onPressed: _isLoading ? null : _handleSyncNow,
+            minHeight: 52,
+            child: Container(
+              height: 52,
+              decoration: BoxDecoration(
+                color: const Color(0xFF16A34A),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              alignment: Alignment.center,
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                    )
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.sync_rounded, color: Colors.white, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Sync Now',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          TactileButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              if (widget.onPairNewServer != null) {
+                widget.onPairNewServer!();
+              }
+            },
+            minHeight: 46,
+            child: Container(
+              height: 46,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              alignment: Alignment.center,
+              child: const Text(
+                'Pair New Server',
+                style: TextStyle(
+                  color: Color(0xFF475569),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

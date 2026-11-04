@@ -17,6 +17,7 @@ void main() {
     test('exports SyncServer and PairingClient classes', () {
       expect(SyncServer, isNotNull);
       expect(PairingClient, isNotNull);
+      expect(SyncQueueWorker, isNotNull);
     });
   });
 }

@@ -7,12 +7,11 @@ Complete asynchronous data synchronization loop between Mobile Terminals and Win
 06: Atomic Checkout & Instant PDF / WhatsApp Bill Generation, 08: Embedded Shelf HTTP Server & QR Pairing Flow
 
 **Status:**
-ready-for-agent
+resolved
 
 **Acceptance Criteria:**
-- [ ] Mobile terminal sync worker drains `sync_queue` over local Wi-Fi when desktop is reachable.
-- [ ] Windows server checks UUID uniqueness before saving invoices; duplicate UUIDs receive `HTTP 200 ACK` without duplicate database records.
-- [ ] Central inventory updates via Delta Inventory Movements (`inventory_movements`), preventing overwrite bugs when multiple offline terminals sell the same SKU.
-- [ ] Mobile terminals pull updated product catalogs and prices upon sync completion.
-- [ ] Concurrency and retry integration tests verify zero lost sales and zero duplicates.
-
+- [x] Mobile terminal sync worker drains `sync_queue` over local Wi-Fi when desktop is reachable.
+- [x] Windows server checks UUID uniqueness before saving invoices; duplicate UUIDs receive `HTTP 200 ACK` without duplicate database records.
+- [x] Central inventory updates via Delta Inventory Movements (`inventory_movements`), preventing overwrite bugs when multiple offline terminals sell the same SKU.
+- [x] Mobile terminals pull updated product catalogs and prices upon sync completion.
+- [x] Concurrency and retry integration tests verify zero lost sales and zero duplicates.

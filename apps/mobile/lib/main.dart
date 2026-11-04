@@ -4,6 +4,7 @@ import 'src/cart/cart_screen.dart';
 import 'src/checkout/checkout_dialog.dart';
 import 'src/providers.dart';
 import 'src/scanner/barcode_scanner_screen.dart';
+import 'src/sync/sync_status_sheet.dart';
 import 'src/sync/terminal_pairing_screen.dart';
 
 void main() {
@@ -44,13 +45,20 @@ class GroceryPosMobileApp extends ConsumerWidget {
             );
           },
           onPairPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => TerminalPairingScreen(
-                  storage: ref.read(terminalStorageProvider),
-                  pairingClient: ref.read(pairingClientProvider),
-                ),
-              ),
+            showSyncStatusSheet(
+              context: context,
+              coordinator: ref.read(syncCoordinatorProvider),
+              storage: ref.read(terminalStorageProvider),
+              onPairNewServer: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => TerminalPairingScreen(
+                      storage: ref.read(terminalStorageProvider),
+                      pairingClient: ref.read(pairingClientProvider),
+                    ),
+                  ),
+                );
+              },
             );
           },
           onCheckoutPressed: () {

@@ -80,6 +80,65 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
+  /// Idempotently ingests an invoice received from a remote mobile terminal.
+  /// If the invoice ID already exists, it is treated as a duplicate ACK (no-op).
+  /// If new, it saves the invoice, items, and creates signed delta inventory movements
+  /// to reconcile central stock without overwrite bugs.
+  Future<SyncIngestResult> ingestSyncedInvoice({
+    required InvoicesCompanion invoice,
+    required List<InvoiceItemsCompanion> items,
+  }) async {
+    final existing = await (select(invoices)..where((tbl) => tbl.id.equals(invoice.id.value))).getSingleOrNull();
+    if (existing != null) {
+      return SyncIngestResult(
+        isDuplicate: true,
+        invoiceId: invoice.id.value,
+        itemsCount: 0,
+      );
+    }
+
+    return transaction(() async {
+      await into(invoices).insert(invoice);
+
+      for (final item in items) {
+        await into(invoiceItems).insert(item);
+
+        if (item.productId.present && item.productId.value != null) {
+          final prodId = item.productId.value!;
+          final prod = await (select(products)..where((tbl) => tbl.id.equals(prodId))).getSingleOrNull();
+          if (prod != null) {
+            final movId = 'mov-sync-${invoice.id.value}-${item.id.value}';
+            final qty = item.quantity.value;
+            await into(inventoryMovements).insert(
+              InventoryMovementsCompanion.insert(
+                id: movId,
+                productId: prodId,
+                deltaQuantity: -qty,
+                reason: 'synced_sale',
+                referenceId: Value(invoice.id.value),
+                createdAt: invoice.createdAt.value,
+              ),
+            );
+
+            final newStock = prod.stockQuantity - qty;
+            await (update(products)..where((tbl) => tbl.id.equals(prodId))).write(
+              ProductsCompanion(
+                stockQuantity: Value(newStock),
+                updatedAt: Value(DateTime.now()),
+              ),
+            );
+          }
+        }
+      }
+
+      return SyncIngestResult(
+        isDuplicate: false,
+        invoiceId: invoice.id.value,
+        itemsCount: items.length,
+      );
+    });
+  }
+
   /// Applies a signed delta movement to the product's stock and writes to the movement audit log.
   Future<void> applyInventoryDelta({
     required String movementId,
@@ -254,6 +313,19 @@ class AppDatabase extends _$AppDatabase {
       cashierBreakdown: cashierBreakdown,
     );
   }
+}
+
+/// Result of an idempotent synced invoice ingestion.
+class SyncIngestResult {
+  final bool isDuplicate;
+  final String invoiceId;
+  final int itemsCount;
+
+  const SyncIngestResult({
+    required this.isDuplicate,
+    required this.invoiceId,
+    required this.itemsCount,
+  });
 }
 
 /// Aggregated executive dashboard metrics for revenue, order count, and payment breakdown.

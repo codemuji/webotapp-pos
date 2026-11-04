@@ -98,7 +98,7 @@ class SyncServer {
     });
 
     // 3. Catalog sync endpoint (authenticated)
-    router.get('/sync/catalog', (Request request) async {
+    Future<Response> handleCatalogSync(Request request) async {
       final authHeader = request.headers['authorization'];
       if (authHeader == null || !authHeader.startsWith('Bearer ')) {
         return Response(HttpStatus.unauthorized, body: jsonEncode({'error': 'Missing Bearer token'}));
@@ -136,7 +136,96 @@ class SyncServer {
         }),
         headers: {'content-type': 'application/json'},
       );
-    });
+    }
+
+    router.get('/sync/catalog', handleCatalogSync);
+    router.get('/api/v1/sync/catalog', handleCatalogSync);
+
+    // 4. Invoices sync ingestion endpoint (authenticated)
+    Future<Response> handleInvoiceIngestion(Request request) async {
+      final authHeader = request.headers['authorization'];
+      if (authHeader == null || !authHeader.startsWith('Bearer ')) {
+        return Response(HttpStatus.unauthorized, body: jsonEncode({'error': 'Missing Bearer token'}));
+      }
+
+      final token = authHeader.substring(7).trim();
+      final device = await database.getDeviceByToken(token);
+      if (device == null) {
+        return Response(HttpStatus.unauthorized, body: jsonEncode({'error': 'Invalid device token'}));
+      }
+
+      final bodyStr = await request.readAsString();
+      final body = jsonDecode(bodyStr) as Map<String, dynamic>;
+      final invoicesList = body['invoices'] as List? ?? [];
+
+      final syncedIds = <String>[];
+      final duplicateIds = <String>[];
+
+      for (final invObj in invoicesList) {
+        final invMap = invObj['invoice'] as Map<String, dynamic>;
+        final itemsList = invObj['items'] as List? ?? [];
+
+        final invoiceId = invMap['id'] as String;
+        final invoiceCompanion = InvoicesCompanion.insert(
+          id: invoiceId,
+          invoiceNumber: invMap['invoiceNumber'] as String? ?? 'INV-$invoiceId',
+          deviceId: invMap['deviceId'] as String? ?? device.id,
+          employeeId: invMap['employeeId'] as String? ?? 'default',
+          customerId: Value(invMap['customerId'] as String?),
+          subtotal: (invMap['subtotal'] as num).toDouble(),
+          discount: Value((invMap['discount'] as num?)?.toDouble() ?? 0.0),
+          taxAmount: Value((invMap['taxAmount'] as num?)?.toDouble() ?? 0.0),
+          totalAmount: (invMap['totalAmount'] as num).toDouble(),
+          paymentMethod: invMap['paymentMethod'] as String? ?? 'cash',
+          createdAt: DateTime.tryParse(invMap['createdAt'] as String? ?? '') ?? DateTime.now(),
+          syncStatus: const Value('synced'),
+        );
+
+        final itemCompanions = <InvoiceItemsCompanion>[];
+        for (int i = 0; i < itemsList.length; i++) {
+          final itm = itemsList[i] as Map<String, dynamic>;
+          final itemId = itm['id'] as String? ?? 'item-$invoiceId-$i';
+          itemCompanions.add(
+            InvoiceItemsCompanion.insert(
+              id: itemId,
+              invoiceId: invoiceId,
+              productId: Value(itm['productId'] as String?),
+              productName: itm['productName'] as String? ?? 'Item',
+              barcode: Value(itm['barcode'] as String?),
+              quantity: (itm['quantity'] as num).toDouble(),
+              unitPrice: (itm['unitPrice'] as num).toDouble(),
+              discount: Value((itm['discount'] as num?)?.toDouble() ?? 0.0),
+              taxAmount: Value((itm['taxAmount'] as num?)?.toDouble() ?? 0.0),
+              lineTotal: (itm['lineTotal'] as num).toDouble(),
+            ),
+          );
+        }
+
+        final result = await database.ingestSyncedInvoice(
+          invoice: invoiceCompanion,
+          items: itemCompanions,
+        );
+
+        syncedIds.add(invoiceId);
+        if (result.isDuplicate) {
+          duplicateIds.add(invoiceId);
+        }
+      }
+
+      await database.updateDeviceSyncTime(device.id, DateTime.now());
+
+      return Response.ok(
+        jsonEncode({
+          'status': 'ok',
+          'synced': syncedIds,
+          'duplicates': duplicateIds,
+        }),
+        headers: {'content-type': 'application/json'},
+      );
+    }
+
+    router.post('/sync/invoices', handleInvoiceIngestion);
+    router.post('/api/v1/sync/invoices', handleInvoiceIngestion);
 
     final handler = const Pipeline().addMiddleware(logRequests()).addHandler(router.call);
 
