@@ -1,5 +1,9 @@
+import 'dart:io';
+import 'package:database/database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'src/cart/cart_screen.dart';
 import 'src/checkout/checkout_dialog.dart';
 import 'src/providers.dart';
@@ -7,10 +11,26 @@ import 'src/scanner/barcode_scanner_screen.dart';
 import 'src/sync/sync_status_sheet.dart';
 import 'src/sync/terminal_pairing_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  AppDatabase? db;
+  try {
+    final docsDir = await getApplicationDocumentsDirectory();
+    if (!await docsDir.exists()) {
+      await docsDir.create(recursive: true);
+    }
+    final dbFile = File(p.join(docsDir.path, 'grocery_pos_mobile.db'));
+    db = AppDatabase.fromFile(dbFile);
+  } catch (e) {
+    debugPrint('Could not initialize persistent mobile database: $e');
+  }
+
   runApp(
-    const ProviderScope(
-      child: GroceryPosMobileApp(),
+    ProviderScope(
+      overrides: [
+        if (db != null) databaseProvider.overrideWithValue(db),
+      ],
+      child: const GroceryPosMobileApp(),
     ),
   );
 }

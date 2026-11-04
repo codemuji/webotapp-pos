@@ -62,10 +62,20 @@ class SyncCoordinator {
       bearerToken: token,
     );
 
+    if (result.catalogError != null && result.syncedInvoicesCount == 0 && result.failedInvoicesCount == 0) {
+      return SyncCoordinatorResult(
+        state: SyncState.failure,
+        message: result.catalogError!,
+        syncedCount: result.syncedInvoicesCount,
+        failedCount: result.failedInvoicesCount,
+        catalogUpdatedCount: result.catalogUpdatedCount,
+      );
+    }
+
     if (result.failedInvoicesCount > 0 && result.syncedInvoicesCount == 0) {
       return SyncCoordinatorResult(
         state: SyncState.failure,
-        message: 'Sync failed for ${result.failedInvoicesCount} sale(s).',
+        message: result.networkError ?? 'Sync failed for ${result.failedInvoicesCount} sale(s).',
         syncedCount: result.syncedInvoicesCount,
         failedCount: result.failedInvoicesCount,
         catalogUpdatedCount: result.catalogUpdatedCount,

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'tables.dart';
@@ -20,6 +21,16 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.inMemory()
       : super(
           NativeDatabase.memory(
+            setup: (rawDb) {
+              rawDb.execute('PRAGMA foreign_keys = ON;');
+            },
+          ),
+        );
+
+  AppDatabase.fromFile(File file)
+      : super(
+          NativeDatabase(
+            file,
             setup: (rawDb) {
               rawDb.execute('PRAGMA foreign_keys = ON;');
             },

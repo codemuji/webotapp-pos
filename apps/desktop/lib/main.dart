@@ -1,6 +1,10 @@
+import 'dart:io';
 import 'package:database/database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:sync_protocol/sync_protocol.dart';
 import 'src/backup/backup_restore_screen.dart';
 import 'src/catalog/product_catalog_screen.dart';
 import 'src/dashboard/admin_dashboard_screen.dart';
@@ -13,10 +17,41 @@ final adminDatabaseProvider = Provider<AppDatabase>((ref) {
   return db;
 });
 
-void main() {
+final desktopSyncServerProvider = Provider<SyncServer>((ref) {
+  final db = ref.watch(adminDatabaseProvider);
+  final server = SyncServer(database: db, storeName: 'FreshMart Store');
+  // Auto-start server in background across all views (skipped in widget tests to avoid port conflicts)
+  if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+    server.start(host: InternetAddress.anyIPv4, port: 8085).catchError((e) {
+      debugPrint('Auto-start sync server error on port 8085: $e');
+    });
+  }
+  ref.onDispose(() {
+    server.stop();
+  });
+  return server;
+});
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  AppDatabase? db;
+  try {
+    final appDir = await getApplicationSupportDirectory();
+    if (!await appDir.exists()) {
+      await appDir.create(recursive: true);
+    }
+    final dbFile = File(p.join(appDir.path, 'grocery_pos_admin.db'));
+    db = AppDatabase.fromFile(dbFile);
+  } catch (e) {
+    debugPrint('Could not initialize persistent admin database: $e');
+  }
+
   runApp(
-    const ProviderScope(
-      child: GroceryPosDesktopAdminApp(),
+    ProviderScope(
+      overrides: [
+        if (db != null) adminDatabaseProvider.overrideWithValue(db),
+      ],
+      child: const GroceryPosDesktopAdminApp(),
     ),
   );
 }
@@ -26,6 +61,9 @@ class GroceryPosDesktopAdminApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Keep sync server alive globally
+    ref.watch(desktopSyncServerProvider);
+
     return MaterialApp(
       title: 'Grocery POS - Store Admin Node',
       debugShowCheckedModeBanner: false,
@@ -55,12 +93,13 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
   @override
   Widget build(BuildContext context) {
     final db = ref.watch(adminDatabaseProvider);
+    final server = ref.watch(desktopSyncServerProvider);
 
     final screens = [
       AdminDashboardScreen(database: db),
       ProductCatalogScreen(database: db),
       EmployeeManagementScreen(database: db),
-      SyncServerScreen(database: db, storeName: 'FreshMart Store'),
+      SyncServerScreen(database: db, storeName: 'FreshMart Store', server: server),
       BackupRestoreScreen(database: db, isSimulationMode: true),
     ];
 
@@ -121,7 +160,12 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
             ],
           ),
           const VerticalDivider(thickness: 1, width: 1, color: Color(0xFFE2E8F0)),
-          Expanded(child: screens[_selectedIndex]),
+          Expanded(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: screens,
+            ),
+          ),
         ],
       ),
     );

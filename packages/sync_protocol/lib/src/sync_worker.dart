@@ -8,14 +8,19 @@ class SyncWorkerResult {
   final int syncedInvoicesCount;
   final int failedInvoicesCount;
   final int catalogUpdatedCount;
+  final String? catalogError;
+  final String? networkError;
 
   const SyncWorkerResult({
     required this.syncedInvoicesCount,
     required this.failedInvoicesCount,
     required this.catalogUpdatedCount,
+    this.catalogError,
+    this.networkError,
   });
 
-  bool get isSuccess => failedInvoicesCount == 0;
+  bool get isSuccess =>
+      failedInvoicesCount == 0 && catalogError == null && networkError == null;
 }
 
 /// Mobile background / manual worker that pushes pending sync queue items to the desktop
@@ -40,6 +45,8 @@ class SyncQueueWorker {
     int syncedCount = 0;
     int failedCount = 0;
     int catalogUpdatedCount = 0;
+    String? networkError;
+    String? catalogError;
 
     // 1. Drain pending sync queue
     if (pendingItems.isNotEmpty) {
@@ -84,6 +91,7 @@ class SyncQueueWorker {
             }
           } else {
             final error = 'Server error HTTP ${response.statusCode}: ${response.body}';
+            networkError = error;
             for (final item in pendingItems) {
               await database.recordSyncItemFailure(item.id, error);
               failedCount++;
@@ -91,6 +99,7 @@ class SyncQueueWorker {
           }
         } catch (e) {
           final error = 'Network failure: $e';
+          networkError = error;
           for (final item in pendingItems) {
             await database.recordSyncItemFailure(item.id, error);
             failedCount++;
@@ -138,15 +147,21 @@ class SyncQueueWorker {
           );
           catalogUpdatedCount++;
         }
+      } else if (catalogResponse.statusCode == 401) {
+        catalogError = 'Terminal unauthorized (HTTP 401). Please re-pair with desktop node.';
+      } else {
+        catalogError = 'Server error fetching catalog: HTTP ${catalogResponse.statusCode}';
       }
-    } catch (_) {
-      // Catalog pull error is non-fatal if offline
+    } catch (e) {
+      catalogError = 'Unable to reach desktop node at $baseUrl ($e). Check Wi-Fi connection and ensure Desktop App is running.';
     }
 
     return SyncWorkerResult(
       syncedInvoicesCount: syncedCount,
       failedInvoicesCount: failedCount,
       catalogUpdatedCount: catalogUpdatedCount,
+      catalogError: catalogError,
+      networkError: networkError,
     );
   }
 }

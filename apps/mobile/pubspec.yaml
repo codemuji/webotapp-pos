@@ -25,6 +25,8 @@ dependencies:
   share_plus: ^13.3.1
   intl: ^0.20.3
   flutter_secure_storage: ^11.2.0
+  path_provider: ^2.1.6
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:

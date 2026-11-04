@@ -9,12 +9,14 @@ class SyncServerScreen extends StatefulWidget {
   final AppDatabase database;
   final String storeName;
   final bool isSimulationMode;
+  final SyncServer? server;
 
   const SyncServerScreen({
     super.key,
     required this.database,
     this.storeName = 'FreshMart Store',
     this.isSimulationMode = false,
+    this.server,
   });
 
   @override
@@ -30,16 +32,30 @@ class SyncServerScreenState extends State<SyncServerScreen> {
   @override
   void initState() {
     super.initState();
-    _server = SyncServer(
-      database: widget.database,
-      storeName: widget.storeName,
-    );
+    _server = widget.server ??
+        SyncServer(
+          database: widget.database,
+          storeName: widget.storeName,
+        );
     _loadDevices();
+    _initQrIfRunning();
+  }
+
+  Future<void> _initQrIfRunning() async {
+    if (!widget.isSimulationMode && _server.isRunning) {
+      final ip = await _detectLocalIp();
+      final qr = _server.generatePairingQrPayload(host: ip);
+      if (mounted) {
+        setState(() {
+          _qrPayload = qr;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
-    if (!widget.isSimulationMode) {
+    if (!widget.isSimulationMode && widget.server == null) {
       _server.stop();
     }
     super.dispose();
@@ -314,11 +330,21 @@ class SyncServerScreenState extends State<SyncServerScreen> {
             ],
 
             // Paired Terminals Table
-            const Text(
-              'Paired Terminals',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Paired Terminals',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                ),
+                IconButton(
+                  tooltip: 'Refresh connected terminals',
+                  icon: const Icon(Icons.refresh_rounded, size: 20, color: Color(0xFF64748B)),
+                  onPressed: _loadDevices,
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,

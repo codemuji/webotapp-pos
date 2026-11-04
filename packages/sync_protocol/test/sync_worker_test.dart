@@ -168,6 +168,44 @@ void main() {
       expect(failedItem.retryCount, equals(1));
       expect(failedItem.lastError, contains('500'));
     });
+
+    test('captures catalogError and reports failure when catalog request returns HTTP 401', () async {
+      final mockClient = MockClient((request) async {
+        if (request.url.path == '/sync/catalog') {
+          return http.Response(jsonEncode({'error': 'Unauthorized'}), 401);
+        }
+        return http.Response('Not Found', 404);
+      });
+
+      final worker = SyncQueueWorker(database: db, client: mockClient);
+
+      final result = await worker.sync(
+        baseUrl: 'http://127.0.0.1:8085',
+        bearerToken: 'invalid-or-expired-token',
+      );
+
+      expect(result.isSuccess, isFalse);
+      expect(result.catalogError, isNotNull);
+      expect(result.catalogError, contains('401'));
+      expect(result.catalogUpdatedCount, equals(0));
+    });
+
+    test('captures catalogError and reports failure when catalog network connection throws', () async {
+      final mockClient = MockClient((request) async {
+        throw Exception('Connection refused (OS Error: Connection refused, errno = 111)');
+      });
+
+      final worker = SyncQueueWorker(database: db, client: mockClient);
+
+      final result = await worker.sync(
+        baseUrl: 'http://192.168.1.35:8085',
+        bearerToken: 'valid-token',
+      );
+
+      expect(result.isSuccess, isFalse);
+      expect(result.catalogError, isNotNull);
+      expect(result.catalogError, contains('Connection refused'));
+    });
   });
 }
 
