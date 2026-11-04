@@ -4,6 +4,7 @@ import 'src/cart/cart_screen.dart';
 import 'src/checkout/checkout_dialog.dart';
 import 'src/providers.dart';
 import 'src/scanner/barcode_scanner_screen.dart';
+import 'src/sync/terminal_pairing_screen.dart';
 
 void main() {
   runApp(
@@ -38,6 +39,16 @@ class GroceryPosMobileApp extends ConsumerWidget {
               MaterialPageRoute(
                 builder: (_) => BarcodeScannerScreen(
                   database: db,
+                ),
+              ),
+            );
+          },
+          onPairPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => TerminalPairingScreen(
+                  storage: ref.read(terminalStorageProvider),
+                  pairingClient: ref.read(pairingClientProvider),
                 ),
               ),
             );

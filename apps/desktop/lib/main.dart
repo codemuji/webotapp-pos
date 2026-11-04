@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'src/catalog/product_catalog_screen.dart';
 import 'src/dashboard/admin_dashboard_screen.dart';
 import 'src/employees/employee_management_screen.dart';
+import 'src/sync/sync_server_screen.dart';
 
 final adminDatabaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase.inMemory();
@@ -58,6 +59,7 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
       AdminDashboardScreen(database: db),
       ProductCatalogScreen(database: db),
       EmployeeManagementScreen(database: db),
+      SyncServerScreen(database: db, storeName: 'FreshMart Store'),
     ];
 
     return Scaffold(
@@ -103,6 +105,11 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
                 icon: Icon(Icons.badge_outlined),
                 selectedIcon: Icon(Icons.badge),
                 label: Text('Employees'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.sync_rounded),
+                selectedIcon: Icon(Icons.sync),
+                label: Text('Terminals'),
               ),
             ],
           ),

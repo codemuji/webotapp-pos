@@ -10,11 +10,13 @@ import 'quantity_numpad_dialog.dart';
 class CartScreen extends ConsumerWidget {
   final VoidCallback? onCheckoutPressed;
   final VoidCallback? onScanPressed;
+  final VoidCallback? onPairPressed;
 
   const CartScreen({
     super.key,
     this.onCheckoutPressed,
     this.onScanPressed,
+    this.onPairPressed,
   });
 
   @override
@@ -32,6 +34,16 @@ class CartScreen extends ConsumerWidget {
         foregroundColor: const Color(0xFF0F172A),
         elevation: 0,
         actions: [
+          if (onPairPressed != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 4.0),
+              child: TactileButton(
+                onPressed: onPairPressed,
+                minWidth: 44,
+                minHeight: 44,
+                child: const Icon(Icons.sync_rounded, color: Color(0xFF0F172A)),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.only(right: 4.0),
             child: TactileButton(

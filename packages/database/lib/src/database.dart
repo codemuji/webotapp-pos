@@ -199,6 +199,27 @@ class AppDatabase extends _$AppDatabase {
     return employee.pinHash == pin;
   }
 
+  // Device Pairing DAOs
+  Future<List<Device>> getAllDevices() {
+    return select(devices).get();
+  }
+
+  Future<void> upsertDevice(DevicesCompanion device) {
+    return into(devices).insertOnConflictUpdate(device);
+  }
+
+  Future<Device?> getDeviceByToken(String token) {
+    return (select(devices)..where((tbl) => tbl.pairingToken.equals(token) & tbl.isPaired.equals(true))).getSingleOrNull();
+  }
+
+  Future<void> updateDeviceSyncTime(String deviceId, DateTime syncTime) {
+    return (update(devices)..where((tbl) => tbl.id.equals(deviceId))).write(
+      DevicesCompanion(
+        lastSyncedAt: Value(syncTime),
+      ),
+    );
+  }
+
   // Dashboard & Reporting Metrics DAOs
   Future<DashboardMetrics> getDashboardMetrics({DateTime? startDate, DateTime? endDate}) async {
     var query = select(invoices);

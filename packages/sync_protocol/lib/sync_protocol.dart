@@ -1,8 +1,6 @@
-/// Support for doing something awesome.
-///
-/// More dartdocs go here.
-library;
+/// Support for offline synchronization and pairing protocol.
+library sync_protocol;
 
-export 'src/sync_protocol_base.dart';
-
-// TODO: Export any libraries intended for clients of this package.
+export 'src/pairing_client.dart';
+export 'src/pairing_models.dart';
+export 'src/sync_server.dart';
