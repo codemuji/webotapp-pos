@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:sync_protocol/sync_protocol.dart';
 import '../widgets/tactile_button.dart';
+import 'sync_coordinator.dart';
 import 'terminal_storage.dart';
 
 /// Screen allowing a mobile POS terminal to scan the Admin Desktop QR code,
@@ -10,12 +11,14 @@ class TerminalPairingScreen extends StatefulWidget {
   final TerminalStorage storage;
   final PairingClient pairingClient;
   final bool isSimulationMode;
+  final SyncCoordinator? syncCoordinator;
 
   const TerminalPairingScreen({
     super.key,
     required this.storage,
     required this.pairingClient,
     this.isSimulationMode = false,
+    this.syncCoordinator,
   });
 
   @override
@@ -88,6 +91,12 @@ class TerminalPairingScreenState extends State<TerminalPairingScreen> {
           storeName: result.storeName!,
           deviceId: 'term-mobile-01',
         );
+
+        if (widget.syncCoordinator != null) {
+          try {
+            await widget.syncCoordinator!.runSync();
+          } catch (_) {}
+        }
 
         setState(() {
           _pairedStoreName = result.storeName;
@@ -423,6 +432,42 @@ class TerminalPairingScreenState extends State<TerminalPairingScreen> {
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
               ),
               const SizedBox(height: 36),
+              if (widget.syncCoordinator != null) ...[
+                TactileButton(
+                  onPressed: () async {
+                    final res = await widget.syncCoordinator!.runSync();
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(res.message),
+                        backgroundColor: res.state == SyncState.success ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  minHeight: 48,
+                  child: Container(
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.sync_rounded, color: Colors.white, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Sync Catalog Now',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               TactileButton(
                 onPressed: _unpairTerminal,
                 minHeight: 48,

@@ -40,6 +40,7 @@ class GroceryPosMobileApp extends ConsumerWidget {
               MaterialPageRoute(
                 builder: (_) => BarcodeScannerScreen(
                   database: db,
+                  syncCoordinator: ref.read(syncCoordinatorProvider),
                 ),
               ),
             );
@@ -55,6 +56,7 @@ class GroceryPosMobileApp extends ConsumerWidget {
                     builder: (_) => TerminalPairingScreen(
                       storage: ref.read(terminalStorageProvider),
                       pairingClient: ref.read(pairingClientProvider),
+                      syncCoordinator: ref.read(syncCoordinatorProvider),
                     ),
                   ),
                 );
