@@ -151,4 +151,103 @@ class AppDatabase extends _$AppDatabase {
       ),
     );
   }
+
+  // Admin Catalog & Category DAOs
+  Future<List<Product>> getAllProducts() {
+    return select(products).get();
+  }
+
+  Future<void> upsertProduct(ProductsCompanion product) {
+    return into(products).insertOnConflictUpdate(product);
+  }
+
+  Future<void> toggleProductActive(String productId, bool isActive) {
+    return (update(products)..where((tbl) => tbl.id.equals(productId))).write(
+      ProductsCompanion(
+        isActive: Value(isActive),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<List<Category>> getAllCategories() {
+    return select(categories).get();
+  }
+
+  Future<void> upsertCategory(CategoriesCompanion category) {
+    return into(categories).insertOnConflictUpdate(category);
+  }
+
+  Future<int> deleteCategory(String categoryId) {
+    return (delete(categories)..where((tbl) => tbl.id.equals(categoryId))).go();
+  }
+
+  // Employee Management DAOs
+  Future<List<Employee>> getAllEmployees() {
+    return select(employees).get();
+  }
+
+  Future<void> upsertEmployee(EmployeesCompanion employee) {
+    return into(employees).insertOnConflictUpdate(employee);
+  }
+
+  Future<bool> verifyEmployeePin(String employeeId, String pin) async {
+    final employee = await (select(employees)..where((tbl) => tbl.id.equals(employeeId))).getSingleOrNull();
+    if (employee == null || !employee.isActive) {
+      return false;
+    }
+    return employee.pinHash == pin;
+  }
+
+  // Dashboard & Reporting Metrics DAOs
+  Future<DashboardMetrics> getDashboardMetrics({DateTime? startDate, DateTime? endDate}) async {
+    var query = select(invoices);
+    if (startDate != null) {
+      query = query..where((tbl) => tbl.createdAt.isBiggerOrEqualValue(startDate));
+    }
+    if (endDate != null) {
+      query = query..where((tbl) => tbl.createdAt.isSmallerOrEqualValue(endDate));
+    }
+
+    final invoiceList = await query.get();
+
+    double totalRevenue = 0.0;
+    final paymentBreakdown = <String, double>{};
+    final cashierBreakdown = <String, double>{};
+
+    for (final inv in invoiceList) {
+      totalRevenue += inv.totalAmount;
+
+      paymentBreakdown[inv.paymentMethod] = (paymentBreakdown[inv.paymentMethod] ?? 0.0) + inv.totalAmount;
+      cashierBreakdown[inv.employeeId] = (cashierBreakdown[inv.employeeId] ?? 0.0) + inv.totalAmount;
+    }
+
+    final orderCount = invoiceList.length;
+    final aov = orderCount > 0 ? totalRevenue / orderCount : 0.0;
+
+    return DashboardMetrics(
+      totalRevenue: totalRevenue,
+      orderCount: orderCount,
+      averageOrderValue: aov,
+      paymentBreakdown: paymentBreakdown,
+      cashierBreakdown: cashierBreakdown,
+    );
+  }
+}
+
+/// Aggregated executive dashboard metrics for revenue, order count, and payment breakdown.
+class DashboardMetrics {
+  final double totalRevenue;
+  final int orderCount;
+  final double averageOrderValue;
+  final Map<String, double> paymentBreakdown;
+  final Map<String, double> cashierBreakdown;
+
+  const DashboardMetrics({
+    required this.totalRevenue,
+    required this.orderCount,
+    required this.averageOrderValue,
+    required this.paymentBreakdown,
+    required this.cashierBreakdown,
+  });
 }

@@ -247,3 +247,4 @@ class _ManualProductSearchContentState extends ConsumerState<_ManualProductSearc
     );
   }
 }
+

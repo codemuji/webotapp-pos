@@ -7,12 +7,11 @@ Windows Desktop application in `apps/desktop` providing store administrators wit
 03: Drift SQLite Schema & In-Memory Persistence Harness
 
 **Status:**
-ready-for-agent
+resolved
 
 **Acceptance Criteria:**
-- [ ] Admin dashboard renders real-time metric cards (revenue, orders, payment breakdown).
-- [ ] Product catalog management allows creating, editing, and deactivating products with selling & purchase prices.
-- [ ] Category taxonomy hierarchy management.
-- [ ] Employee management allows setting 4-digit PINs and role assignments.
-- [ ] Thermal product barcode and QR label generator with print preview.
-
+- [x] Admin dashboard renders real-time metric cards (revenue, orders, payment breakdown).
+- [x] Product catalog management allows creating, editing, and deactivating products with selling & purchase prices.
+- [x] Category taxonomy hierarchy management.
+- [x] Employee management allows setting 4-digit PINs and role assignments.
+- [x] Thermal product barcode and QR label generator with print preview.

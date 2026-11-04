@@ -84,3 +84,4 @@ class BarcodeScanHandler {
     return ScanResult.found(product, rawBarcode);
   }
 }
+
