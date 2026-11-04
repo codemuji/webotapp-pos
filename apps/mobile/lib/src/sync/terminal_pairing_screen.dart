@@ -32,8 +32,9 @@ class TerminalPairingScreenState extends State<TerminalPairingScreen> {
     super.initState();
     if (!widget.isSimulationMode) {
       _scannerController = MobileScannerController(
-        detectionSpeed: DetectionSpeed.noDuplicates,
+        detectionSpeed: DetectionSpeed.normal,
         facing: CameraFacing.back,
+        formats: const [BarcodeFormat.qrCode],
       );
     } else {
       _scannerController = null;
@@ -115,6 +116,99 @@ class TerminalPairingScreenState extends State<TerminalPairingScreen> {
     );
   }
 
+  void _showManualPairDialog() {
+    final ipController = TextEditingController(text: '192.168.1.35');
+    final portController = TextEditingController(text: '8085');
+    final secretController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Manual Terminal Pairing',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Enter the connection details displayed on the Windows Desktop Admin screen:',
+              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: ipController,
+              decoration: const InputDecoration(
+                labelText: 'Desktop Server IP',
+                hintText: 'e.g. 192.168.1.35',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: portController,
+              decoration: const InputDecoration(
+                labelText: 'Port',
+                hintText: '8085',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: secretController,
+              decoration: const InputDecoration(
+                labelText: 'Pairing Key / Secret',
+                hintText: 'e.g. ABC123XY',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 20),
+            TactileButton(
+              onPressed: () {
+                final ip = ipController.text.trim();
+                final port = int.tryParse(portController.text.trim()) ?? 8085;
+                final secret = secretController.text.trim();
+                if (ip.isEmpty || secret.isEmpty) {
+                  return;
+                }
+                Navigator.pop(ctx);
+                final payload = PairingQrPayload(
+                  host: ip,
+                  port: port,
+                  pairingSecret: secret,
+                  storeName: 'FreshMart Store',
+                );
+                handleScannedQr(payload.toRawString());
+              },
+              child: Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: const Text(
+                  'Connect & Pair',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _unpairTerminal() async {
     await widget.storage.clear();
     setState(() {
@@ -138,9 +232,12 @@ class TerminalPairingScreenState extends State<TerminalPairingScreen> {
             MobileScanner(
               controller: _scannerController,
               onDetect: (capture) {
-                final raw = capture.barcodes.firstOrNull?.rawValue;
-                if (raw != null && raw.isNotEmpty) {
-                  handleScannedQr(raw);
+                for (final barcode in capture.barcodes) {
+                  final raw = barcode.rawValue;
+                  if (raw != null && raw.isNotEmpty) {
+                    handleScannedQr(raw);
+                    break;
+                  }
                 }
               },
             )
@@ -215,6 +312,65 @@ class TerminalPairingScreenState extends State<TerminalPairingScreen> {
                     'Scan the QR code displayed on the Windows Desktop Admin dashboard',
                     style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
                     textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Bottom Bar (Torch & Manual Pairing options)
+          Positioned(
+            bottom: 40,
+            left: 24,
+            right: 24,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (!widget.isSimulationMode && _scannerController != null) ...[
+                  TactileButton(
+                    onPressed: () => _scannerController.toggleTorch(),
+                    minWidth: 48,
+                    minHeight: 48,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.flash_on_rounded, color: Colors.white, size: 22),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                ],
+                TactileButton(
+                  onPressed: _showManualPairDialog,
+                  minHeight: 48,
+                  child: Container(
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4)),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.edit_note_rounded, color: Color(0xFF0F172A), size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Enter Manually',
+                          style: TextStyle(
+                            color: Color(0xFF0F172A),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

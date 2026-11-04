@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:database/database.dart';
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:sync_protocol/sync_protocol.dart';
 
 /// Embedded Shelf HTTP Server control panel and Terminal QR pairing screen.
@@ -53,6 +54,33 @@ class SyncServerScreenState extends State<SyncServerScreen> {
     }
   }
 
+  Future<String> _detectLocalIp() async {
+    try {
+      final interfaces = await NetworkInterface.list(
+        type: InternetAddressType.IPv4,
+        includeLinkLocal: false,
+      );
+      for (final interface in interfaces) {
+        final name = interface.name.toLowerCase();
+        if (!name.contains('wsl') && !name.contains('virtual') && !name.contains('vethernet')) {
+          for (final addr in interface.addresses) {
+            if (!addr.isLoopback) {
+              return addr.address;
+            }
+          }
+        }
+      }
+      for (final interface in interfaces) {
+        for (final addr in interface.addresses) {
+          if (!addr.isLoopback) {
+            return addr.address;
+          }
+        }
+      }
+    } catch (_) {}
+    return '192.168.1.35';
+  }
+
   /// Toggles server status between running and stopped.
   Future<void> toggleServer() async {
     if (widget.isSimulationMode) {
@@ -82,7 +110,8 @@ class SyncServerScreenState extends State<SyncServerScreen> {
         }
       } else {
         await _server.start(host: InternetAddress.anyIPv4, port: 8085);
-        final qr = _server.generatePairingQrPayload(host: '192.168.1.100');
+        final ip = await _detectLocalIp();
+        final qr = _server.generatePairingQrPayload(host: ip);
         if (mounted) {
           setState(() {
             _qrPayload = qr;
@@ -216,33 +245,40 @@ class SyncServerScreenState extends State<SyncServerScreen> {
                 ),
                 child: Row(
                   children: [
-                    // QR Code Container
-                    Container(
-                      width: 180,
-                      height: 180,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFCBD5E1)),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.qr_code_2_rounded, size: 100, color: Color(0xFF0F172A)),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'KEY: ${_qrPayload!.pairingSecret}',
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 10, letterSpacing: 1),
-                            ),
+                    // Real Scannable QR Code and Pairing Key
+                    Column(
+                      children: [
+                        Container(
+                          width: 180,
+                          height: 180,
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFCBD5E1)),
                           ),
-                        ],
-                      ),
+                          child: QrImageView(
+                            data: _qrPayload!.toRawString(),
+                            version: QrVersions.auto,
+                            size: 164.0,
+                            backgroundColor: Colors.white,
+                            padding: const EdgeInsets.all(4),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFFCBD5E1)),
+                          ),
+                          child: Text(
+                            'KEY: ${_qrPayload!.pairingSecret}',
+                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 1),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(width: 24),
                     Expanded(
