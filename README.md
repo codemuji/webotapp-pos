@@ -185,3 +185,4 @@ The output APK will be generated at `apps/mobile/build/app/outputs/flutter-apk/a
 
 Developed by the **WebotApp** team. Visit [webotapp.com](https://webotapp.com) for more information.
 Licensed under the Apache 2.0 License.
+

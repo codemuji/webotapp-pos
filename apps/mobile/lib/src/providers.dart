@@ -25,3 +25,10 @@ final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
   return SyncCoordinator(database: db, storage: storage);
 });
 
+/// Tab index provider for mobile navigation: 0 = Counter POS / Cart, 1 = Catalog
+final mobileTabIndexProvider = StateProvider<int>((ref) => 0);
+
+/// Catalog revision counter bumped whenever a sync or catalog mutation finishes.
+final catalogRevisionProvider = StateProvider<int>((ref) => 0);
+
+

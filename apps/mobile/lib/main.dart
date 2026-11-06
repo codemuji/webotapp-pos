@@ -38,22 +38,21 @@ void main() async {
   );
 }
 
-class GroceryPosMobileApp extends ConsumerStatefulWidget {
+class GroceryPosMobileApp extends ConsumerWidget {
   const GroceryPosMobileApp({super.key});
 
   @override
-  ConsumerState<GroceryPosMobileApp> createState() => _GroceryPosMobileAppState();
-}
-
-class _GroceryPosMobileAppState extends ConsumerState<GroceryPosMobileApp> {
-  int _tabIndex = 0;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tabIndex = ref.watch(mobileTabIndexProvider);
     final db = ref.watch(databaseProvider);
     final syncCoord = ref.watch(syncCoordinatorProvider);
     final storage = ref.watch(terminalStorageProvider);
     final cart = ref.watch(cartProvider);
+
+    void navigateToCatalog() {
+      ref.read(catalogRevisionProvider.notifier).state++;
+      ref.read(mobileTabIndexProvider.notifier).state = 1;
+    }
 
     return MaterialApp(
       title: 'WebotApp POS Mobile',
@@ -69,18 +68,18 @@ class _GroceryPosMobileAppState extends ConsumerState<GroceryPosMobileApp> {
                     builder: (_) => BarcodeScannerScreen(
                       database: db,
                       syncCoordinator: syncCoord,
+                      onNavigateToCatalog: navigateToCatalog,
                     ),
                   ),
                 );
               },
-              onBrowseCatalogPressed: () {
-                setState(() => _tabIndex = 1);
-              },
+              onBrowseCatalogPressed: navigateToCatalog,
               onPairPressed: () {
                 showSyncStatusSheet(
                   context: context,
                   coordinator: syncCoord,
                   storage: storage,
+                  onNavigateToCatalog: navigateToCatalog,
                   onPairNewServer: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -88,6 +87,7 @@ class _GroceryPosMobileAppState extends ConsumerState<GroceryPosMobileApp> {
                           storage: storage,
                           pairingClient: ref.read(pairingClientProvider),
                           syncCoordinator: syncCoord,
+                          onNavigateToCatalog: navigateToCatalog,
                         ),
                       ),
                     );
@@ -107,18 +107,18 @@ class _GroceryPosMobileAppState extends ConsumerState<GroceryPosMobileApp> {
               database: db,
               syncCoordinator: syncCoord,
               terminalStorage: storage,
-              isActiveTab: _tabIndex == 1,
+              isActiveTab: tabIndex == 1,
             ),
           ];
 
           return Scaffold(
             body: IndexedStack(
-              index: _tabIndex,
+              index: tabIndex,
               children: screens,
             ),
             bottomNavigationBar: NavigationBar(
-              selectedIndex: _tabIndex,
-              onDestinationSelected: (idx) => setState(() => _tabIndex = idx),
+              selectedIndex: tabIndex,
+              onDestinationSelected: (idx) => ref.read(mobileTabIndexProvider.notifier).state = idx,
               destinations: [
                 NavigationDestination(
                   icon: Badge(

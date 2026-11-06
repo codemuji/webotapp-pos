@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../cart/cart_state.dart';
+import '../providers.dart';
 import '../sync/sync_coordinator.dart';
 import '../sync/sync_status_sheet.dart';
+import '../sync/terminal_pairing_screen.dart';
 import '../sync/terminal_storage.dart';
 import '../theme/webotapp_logo.dart';
 import '../widgets/tactile_button.dart';
@@ -145,6 +147,7 @@ class _MobileCatalogScreenState extends ConsumerState<MobileCatalogScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(catalogRevisionProvider, (_, __) => _loadData());
     final products = _filteredProducts;
 
     return Scaffold(
@@ -173,6 +176,19 @@ class _MobileCatalogScreenState extends ConsumerState<MobileCatalogScreen> {
                 context: context,
                 coordinator: widget.syncCoordinator,
                 storage: widget.terminalStorage,
+                onNavigateToCatalog: _loadData,
+                onPairNewServer: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => TerminalPairingScreen(
+                        storage: widget.terminalStorage,
+                        pairingClient: ref.read(pairingClientProvider),
+                        syncCoordinator: widget.syncCoordinator,
+                        onNavigateToCatalog: _loadData,
+                      ),
+                    ),
+                  );
+                },
               ).then((_) => _loadData());
             },
           ),

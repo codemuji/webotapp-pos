@@ -1,6 +1,11 @@
+import 'dart:convert';
+import 'package:database/database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:mobile/src/sync/sync_coordinator.dart';
 import 'package:mobile/src/sync/terminal_pairing_screen.dart';
 import 'package:mobile/src/sync/terminal_storage.dart';
 import 'package:sync_protocol/sync_protocol.dart';
@@ -100,6 +105,76 @@ void main() {
 
       expect(find.text('Pairing failed: Invalid or expired pairing secret'), findsOneWidget);
       expect(await storage.isPaired(), isFalse);
+    });
+
+    testWidgets('TerminalPairingScreen redirects to catalog after successful catalog sync', (tester) async {
+      final storage = TerminalStorage.inMemory();
+      final db = AppDatabase.inMemory();
+
+      final mockClient = MockClient((request) async {
+        if (request.url.path == '/sync/invoices') {
+          return http.Response(
+            jsonEncode({'status': 'ok', 'synced': [], 'duplicates': []}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        } else if (request.url.path == '/sync/catalog') {
+          return http.Response(
+            jsonEncode({
+              'products': [
+                {'id': 'p1', 'name': 'Tea Leaves', 'sellingPrice': 80.0, 'unit': 'pkt'},
+              ],
+              'categories': [],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response('Not Found', 404);
+      });
+
+      final coordinator = SyncCoordinator(
+        database: db,
+        storage: storage,
+        worker: SyncQueueWorker(database: db, client: mockClient),
+      );
+
+      final mockPairingClient = _MockPairingClient(
+        result: const PairingResult.success(
+          bearerToken: 'tok_paired_success',
+          storeName: 'FreshMart Indiranagar',
+          serverUrl: 'http://192.168.1.100:8085',
+        ),
+      );
+
+      bool catalogRedirected = false;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: TerminalPairingScreen(
+              storage: storage,
+              pairingClient: mockPairingClient,
+              syncCoordinator: coordinator,
+              isSimulationMode: true,
+              onNavigateToCatalog: () {
+                catalogRedirected = true;
+              },
+            ),
+          ),
+        ),
+      );
+
+      final screenState = tester.state<TerminalPairingScreenState>(find.byType(TerminalPairingScreen));
+      const rawQr = '{"protocol":"grocery-pos-sync","version":"1.0","host":"192.168.1.100","port":8085,"pairingSecret":"SEC123","storeName":"FreshMart"}';
+
+      await screenState.handleScannedQr(rawQr);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(catalogRedirected, isTrue);
+      await db.close();
     });
   });
 }

@@ -13,6 +13,7 @@ Future<void> showSyncStatusSheet({
   required SyncCoordinator coordinator,
   required TerminalStorage storage,
   VoidCallback? onPairNewServer,
+  VoidCallback? onNavigateToCatalog,
 }) {
   return showModalBottomSheet(
     context: context,
@@ -22,6 +23,7 @@ Future<void> showSyncStatusSheet({
       coordinator: coordinator,
       storage: storage,
       onPairNewServer: onPairNewServer,
+      onNavigateToCatalog: onNavigateToCatalog,
     ),
   );
 }
@@ -30,11 +32,13 @@ class _SyncStatusSheetContent extends StatefulWidget {
   final SyncCoordinator coordinator;
   final TerminalStorage storage;
   final VoidCallback? onPairNewServer;
+  final VoidCallback? onNavigateToCatalog;
 
   const _SyncStatusSheetContent({
     required this.coordinator,
     required this.storage,
     this.onPairNewServer,
+    this.onNavigateToCatalog,
   });
 
   @override
@@ -144,6 +148,21 @@ class _SyncStatusSheetContentState extends State<_SyncStatusSheetContent> {
           _feedbackMessage = result.message;
           _isFeedbackSuccess = result.state == SyncState.success;
         });
+
+        if (result.state == SyncState.success && widget.onNavigateToCatalog != null) {
+          final messenger = ScaffoldMessenger.of(context);
+          if (mounted) {
+            Navigator.of(context).pop();
+            widget.onNavigateToCatalog!();
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(result.message),
+                backgroundColor: const Color(0xFF10B981),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
       }
     } catch (e) {
       if (mounted) {

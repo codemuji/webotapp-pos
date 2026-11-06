@@ -13,6 +13,7 @@ class TerminalPairingScreen extends StatefulWidget {
   final PairingClient pairingClient;
   final bool isSimulationMode;
   final SyncCoordinator? syncCoordinator;
+  final VoidCallback? onNavigateToCatalog;
 
   const TerminalPairingScreen({
     super.key,
@@ -20,6 +21,7 @@ class TerminalPairingScreen extends StatefulWidget {
     required this.pairingClient,
     this.isSimulationMode = false,
     this.syncCoordinator,
+    this.onNavigateToCatalog,
   });
 
   @override
@@ -122,7 +124,21 @@ class TerminalPairingScreenState extends State<TerminalPairingScreen> {
 
         if (widget.syncCoordinator != null) {
           try {
-            await widget.syncCoordinator!.runSync();
+            final syncRes = await widget.syncCoordinator!.runSync();
+            if (syncRes.state == SyncState.success && widget.onNavigateToCatalog != null) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(syncRes.message),
+                    backgroundColor: const Color(0xFF10B981),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                Navigator.of(context).popUntil((route) => route.isFirst);
+                widget.onNavigateToCatalog!();
+                return;
+              }
+            }
           } catch (_) {}
         }
 
@@ -632,6 +648,13 @@ class TerminalPairingScreenState extends State<TerminalPairingScreen> {
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
+                            if (res.state == SyncState.success && widget.onNavigateToCatalog != null) {
+                              if (mounted) {
+                                Navigator.of(context).popUntil((route) => route.isFirst);
+                                widget.onNavigateToCatalog!();
+                                return;
+                              }
+                            }
                           } catch (e) {
                             if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(

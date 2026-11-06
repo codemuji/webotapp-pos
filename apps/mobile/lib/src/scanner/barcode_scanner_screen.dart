@@ -16,12 +16,14 @@ class BarcodeScannerScreen extends ConsumerStatefulWidget {
   final AppDatabase database;
   final bool isSimulationMode;
   final SyncCoordinator? syncCoordinator;
+  final VoidCallback? onNavigateToCatalog;
 
   const BarcodeScannerScreen({
     super.key,
     required this.database,
     this.isSimulationMode = false,
     this.syncCoordinator,
+    this.onNavigateToCatalog,
   });
 
   @override
@@ -93,6 +95,20 @@ class BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
           _scanFeedbackMessage = res.message;
           _isFeedbackSuccess = res.state == SyncState.success;
         });
+        if (res.state == SyncState.success && widget.onNavigateToCatalog != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(res.message),
+              backgroundColor: const Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          if (mounted) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            widget.onNavigateToCatalog!();
+            return;
+          }
+        }
         _scheduleFeedbackDismiss();
       }
     } catch (e) {
