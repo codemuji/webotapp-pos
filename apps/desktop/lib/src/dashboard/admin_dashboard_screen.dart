@@ -23,6 +23,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   DashboardMetrics? _metrics;
   List<InvoiceWithItems> _recentSales = [];
   bool _isLoading = true;
+  String _selectedPeriod = 'Today';
 
   @override
   void initState() {
@@ -30,16 +31,65 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _loadMetrics();
   }
 
-  Future<void> _loadMetrics() async {
+  Future<void> _loadMetrics([String? period]) async {
+    if (period != null) {
+      _selectedPeriod = period;
+    }
     setState(() => _isLoading = true);
-    final metrics = await widget.database.getDashboardMetrics();
-    final recent = await widget.database.getRecentInvoicesWithItems(limit: 5);
+
+    final now = DateTime.now();
+    DateTime? startDate;
+    DateTime? endDate;
+
+    switch (_selectedPeriod) {
+      case 'Today':
+        startDate = DateTime(now.year, now.month, now.day);
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        break;
+      case 'Yesterday':
+        final y = now.subtract(const Duration(days: 1));
+        startDate = DateTime(y.year, y.month, y.day);
+        endDate = DateTime(y.year, y.month, y.day, 23, 59, 59);
+        break;
+      case 'Last 7 Days':
+        startDate = now.subtract(const Duration(days: 7));
+        endDate = now;
+        break;
+      case 'This Month':
+        startDate = DateTime(now.year, now.month, 1);
+        endDate = now;
+        break;
+      default:
+        startDate = null;
+        endDate = null;
+    }
+
+    final metrics = await widget.database.getDashboardMetrics(
+      startDate: startDate,
+      endDate: endDate,
+    );
+    final recent = await widget.database.getRecentInvoicesWithItems(limit: 6);
     if (mounted) {
       setState(() {
         _metrics = metrics;
         _recentSales = recent;
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _seedDemoData() async {
+    setState(() => _isLoading = true);
+    await seedDemoStoreData(widget.database, force: true);
+    await _loadMetrics();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚡ Successfully seeded 750+ grocery products and 450+ completed invoices!'),
+          backgroundColor: Color(0xFF10B981),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -83,10 +133,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      // Date Range Filter Pills (Emil UI)
+                      // Date Range Filter Pills (100% Real Database Queries)
                       Row(
                         children: [
-                          _buildFilterPill('Today', isSelected: true),
+                          _buildFilterPill('Today'),
                           const SizedBox(width: 6),
                           _buildFilterPill('Yesterday'),
                           const SizedBox(width: 6),
@@ -96,8 +146,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         ],
                       ),
                       const SizedBox(width: 12),
+                      // Seed Demo Data Button (For Demo & Presentation)
+                      ElevatedButton.icon(
+                        onPressed: _seedDemoData,
+                        icon: const Icon(Icons.bolt_rounded, size: 16),
+                        label: const Text('Seed 750+ Demo Data'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6366F1),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       IconButton(
-                        onPressed: _loadMetrics,
+                        onPressed: () => _loadMetrics(),
                         icon: const Icon(Icons.refresh_rounded),
                         tooltip: 'Refresh Metrics',
                         style: IconButton.styleFrom(
@@ -434,22 +497,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  Widget _buildFilterPill(String label, {bool isSelected = false}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF6366F1) : Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: isSelected ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
+  Widget _buildFilterPill(String label) {
+    final isSelected = _selectedPeriod == label;
+    return InkWell(
+      onTap: () => _loadMetrics(label),
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF6366F1) : Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
+          ),
         ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? Colors.white : const Color(0xFF64748B),
-          fontSize: 11,
-          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : const Color(0xFF64748B),
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+          ),
         ),
       ),
     );
@@ -457,10 +525,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _buildHourlySalesVelocityCard() {
     final hours = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'];
-    final baseTotal = _metrics?.totalRevenue ?? 2000.0;
-    // Scale hourly distribution proportionally
-    final weights = [0.08, 0.14, 0.18, 0.10, 0.16, 0.22, 0.08, 0.04];
-    final hourlyVals = weights.map((w) => baseTotal * w).toList();
+    final realHourly = _metrics?.hourlySales ?? {};
+    final hourlyVals = hours.map((h) => realHourly[h] ?? 0.0).toList();
     final maxVal = hourlyVals.isEmpty ? 1.0 : hourlyVals.reduce((a, b) => a > b ? a : b);
 
     return Container(

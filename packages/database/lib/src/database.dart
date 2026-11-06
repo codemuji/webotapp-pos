@@ -433,12 +433,43 @@ class AppDatabase extends _$AppDatabase {
     double totalRevenue = 0.0;
     final paymentBreakdown = <String, double>{};
     final cashierBreakdown = <String, double>{};
+    final hourlySales = <String, double>{
+      '08:00': 0.0,
+      '10:00': 0.0,
+      '12:00': 0.0,
+      '14:00': 0.0,
+      '16:00': 0.0,
+      '18:00': 0.0,
+      '20:00': 0.0,
+      '22:00': 0.0,
+    };
 
     for (final inv in invoiceList) {
       totalRevenue += inv.totalAmount;
 
       paymentBreakdown[inv.paymentMethod] = (paymentBreakdown[inv.paymentMethod] ?? 0.0) + inv.totalAmount;
       cashierBreakdown[inv.employeeId] = (cashierBreakdown[inv.employeeId] ?? 0.0) + inv.totalAmount;
+
+      final h = inv.createdAt.hour;
+      String bucket;
+      if (h < 9) {
+        bucket = '08:00';
+      } else if (h < 11) {
+        bucket = '10:00';
+      } else if (h < 13) {
+        bucket = '12:00';
+      } else if (h < 15) {
+        bucket = '14:00';
+      } else if (h < 17) {
+        bucket = '16:00';
+      } else if (h < 19) {
+        bucket = '18:00';
+      } else if (h < 21) {
+        bucket = '20:00';
+      } else {
+        bucket = '22:00';
+      }
+      hourlySales[bucket] = (hourlySales[bucket] ?? 0.0) + inv.totalAmount;
     }
 
     final orderCount = invoiceList.length;
@@ -450,6 +481,7 @@ class AppDatabase extends _$AppDatabase {
       averageOrderValue: aov,
       paymentBreakdown: paymentBreakdown,
       cashierBreakdown: cashierBreakdown,
+      hourlySales: hourlySales,
     );
   }
 
@@ -533,6 +565,7 @@ class DashboardMetrics {
   final double averageOrderValue;
   final Map<String, double> paymentBreakdown;
   final Map<String, double> cashierBreakdown;
+  final Map<String, double> hourlySales;
 
   const DashboardMetrics({
     required this.totalRevenue,
@@ -540,5 +573,6 @@ class DashboardMetrics {
     required this.averageOrderValue,
     required this.paymentBreakdown,
     required this.cashierBreakdown,
+    this.hourlySales = const {},
   });
 }

@@ -63,6 +63,12 @@ void main() async {
       }
       final dbFile = File(p.join(appDir.path, 'grocery_pos_admin.db'));
       db = AppDatabase.fromFile(dbFile);
+
+      // Auto-populate comprehensive realistic retail mock dataset (750+ products & 450+ invoices)
+      final prods = await db.getAllProducts();
+      if (prods.length < 50) {
+        await seedDemoStoreData(db);
+      }
     } catch (e, st) {
       _logCrash(e, st);
       debugPrint('Could not initialize persistent admin database: $e');
