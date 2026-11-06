@@ -1,7 +1,7 @@
-; Script generated for WebotApp POS Windows Installer
+; Script generated for WebotApp Departmental POS Windows Installer
 ; Generated with Inno Setup 6
 
-#define MyAppName "WebotApp POS"
+#define MyAppName "WebotApp Departmental POS"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "WebotApp"
 #define MyAppURL "https://webotapp.com"
@@ -16,12 +16,12 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-DefaultDirName={autopf}\WebotApp POS
+DefaultDirName={autopf}\WebotApp Departmental POS
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 LicenseFile=
 OutputDir=..\..\dist
-OutputBaseFilename=WebotApp-POS-Setup-v1.0.0
+OutputBaseFilename=WebotApp-Departmental-POS-Setup-v1.0.0
 SetupIconFile=..\..\apps\desktop\windows\runner\resources\app_icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes

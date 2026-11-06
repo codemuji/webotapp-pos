@@ -1,10 +1,10 @@
-# WebotApp POS
+# WebotApp Departmental POS
 
-An offline-first retail Point of Sale (POS) and inventory management ecosystem designed for grocery stores, supermarkets, and pharmacies.
+An offline-first retail & departmental Point of Sale (POS) and inventory management ecosystem designed for grocery supermarkets, departmental stores, hypermarkets, and retail chains.
 
-WebotApp POS operates on a **hybrid local-first architecture**:
-* A **Windows Desktop Admin Node** runs the master database, product catalog, sales analytics, and an embedded synchronization daemon.
-* Multiple **Android Mobile Terminals** act as high-speed checkout registers with camera barcode scanning, retail confirmation audio, cart management, and thermal receipt printing.
+WebotApp Departmental POS operates on a **hybrid local-first architecture**:
+* A **Windows Desktop Central Console** runs the master database, multi-department catalog, sales analytics, and an embedded synchronization daemon.
+* Multiple **Android Mobile Terminals** act as high-speed cashier checkout registers with camera barcode scanning, retail confirmation audio, cart management, and thermal receipt printing.
 * All transactions are processed 100% offline and reconcile seamlessly over the local network.
 
 ---
@@ -13,9 +13,9 @@ WebotApp POS operates on a **hybrid local-first architecture**:
 
 Official production binaries for **v1.0.0** are available on the [Releases page](https://github.com/webotapp-academy/webotapp-pos/releases/tag/v1.0.0):
 
-* **Windows Installer**: [`WebotApp-POS-Setup-v1.0.0.exe`](https://github.com/webotapp-academy/webotapp-pos/releases/download/v1.0.0/WebotApp-POS-Setup-v1.0.0.exe) (Setup wizard, desktop shortcut, uninstaller)
-* **Windows Portable**: [`WebotApp-POS-Windows-Portable-v1.0.0.zip`](https://github.com/webotapp-academy/webotapp-pos/releases/download/v1.0.0/WebotApp-POS-Windows-Portable-v1.0.0.zip) (Standalone folder)
-* **Android Cashier App**: [`WebotApp-POS-Android-v1.0.0.apk`](https://github.com/webotapp-academy/webotapp-pos/releases/download/v1.0.0/WebotApp-POS-Android-v1.0.0.apk) (Android 7.0+)
+* **Windows Installer**: [`WebotApp-Departmental-POS-Setup-v1.0.0.exe`](https://github.com/webotapp-academy/webotapp-pos/releases/download/v1.0.0/WebotApp-Departmental-POS-Setup-v1.0.0.exe) (Setup wizard, desktop shortcut, uninstaller)
+* **Windows Portable**: [`WebotApp-Departmental-POS-Windows-Portable-v1.0.0.zip`](https://github.com/webotapp-academy/webotapp-pos/releases/download/v1.0.0/WebotApp-Departmental-POS-Windows-Portable-v1.0.0.zip) (Standalone folder)
+* **Android Cashier App**: [`WebotApp-Departmental-POS-Android-v1.0.0.apk`](https://github.com/webotapp-academy/webotapp-pos/releases/download/v1.0.0/WebotApp-Departmental-POS-Android-v1.0.0.apk) (Android 7.0+)
 
 ---
 
@@ -189,7 +189,7 @@ cd apps/mobile && flutter test
    ```powershell
    & "C:\Users\<user>\AppData\Local\Programs\Inno Setup 6\ISCC.exe" packaging/windows/inno_setup.iss
    ```
-   The installer executable will be generated at `dist/WebotApp-POS-Setup-v1.0.0.exe`.
+   The installer executable will be generated at `dist/WebotApp-Departmental-POS-Setup-v1.0.0.exe`.
 
 ### Android APK (`.apk`)
 
@@ -203,9 +203,9 @@ The output APK will be generated at `apps/mobile/build/app/outputs/flutter-apk/a
 
 ## Pairing & Local Sync Guide
 
-1. Launch **WebotApp POS** on Windows.
+1. Launch **WebotApp Departmental POS** on Windows.
 2. In the navigation rail, navigate to **Terminals** (Port 8085 is active by default).
-3. Open **WebotApp POS** on Android and tap **Pair Terminal**.
+3. Open **WebotApp Departmental POS** on Android and tap **Pair Terminal**.
 4. Scan the pairing QR code displayed on the desktop screen.
 5. If running on a secured office router with AP Isolation enabled, run `allow_firewall_sync_port.bat` on the Windows PC as Administrator or connect both devices to the same mobile hotspot.
 

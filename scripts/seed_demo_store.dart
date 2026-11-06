@@ -5,6 +5,7 @@ import 'package:database/database.dart';
 /// with 540+ products, categories, employees, and 460+ completed sales invoices.
 void main() async {
   final dbPaths = [
+    r'C:\Users\codemuji\AppData\Roaming\WebotApp\WebotApp Departmental POS\grocery_pos_admin.db',
     r'C:\Users\codemuji\AppData\Roaming\WebotApp\WebotApp POS\grocery_pos_admin.db',
     r'C:\Users\codemuji\AppData\Roaming\com.grocerypos\desktop\grocery_pos_admin.db',
   ];

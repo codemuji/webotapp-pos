@@ -20,7 +20,7 @@ void main() {
 
     // Starts on Dashboard
     expect(find.text('Store Executive Dashboard'), findsOneWidget);
-    expect(find.text('POS SYSTEM'), findsOneWidget);
+    expect(find.text('DEPARTMENTAL POS'), findsOneWidget);
 
     // Switch to Sales
     await tester.tap(find.text('Sales'));

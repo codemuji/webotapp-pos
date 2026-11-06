@@ -55,7 +55,7 @@ class GroceryPosMobileApp extends ConsumerWidget {
     }
 
     return MaterialApp(
-      title: 'WebotApp POS Mobile',
+      title: 'WebotApp Departmental POS — Mobile Terminal',
       debugShowCheckedModeBanner: false,
       theme: WebotAppTheme.lightTheme,
       home: Builder(

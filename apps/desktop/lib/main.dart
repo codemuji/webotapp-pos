@@ -96,7 +96,7 @@ class GroceryPosDesktopAdminApp extends ConsumerWidget {
     ref.watch(desktopSyncServerProvider);
 
     return MaterialApp(
-      title: 'WebotApp POS — Store Admin Node',
+      title: 'WebotApp Departmental POS — Store Admin Console',
       debugShowCheckedModeBanner: false,
       theme: WebotAppTheme.lightTheme,
       scrollBehavior: const DesktopSmoothScrollBehavior(),
@@ -215,7 +215,7 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
                             ),
                             const SizedBox(height: 2),
                             const Text(
-                              'POS SYSTEM',
+                              'DEPARTMENTAL POS',
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 9,
