@@ -50,4 +50,12 @@ packaging/output/
 *.db-wal
 desktop_crash.log
 
+# Agent & Prompt tooling (Local only)
+.agents/
+.hermes/
+.scratch/
+AGENT.md
+skills-lock.json
+
+
 
