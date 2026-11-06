@@ -304,17 +304,105 @@ class BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
             ),
           ),
 
-          // Reticle Targeting HUD
+          // Reticle Targeting HUD (High-Tech Laser Viewfinder)
           Center(
-            child: Container(
+            child: SizedBox(
               width: 260,
               height: 260,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: const Color(0xFF38BDF8),
-                  width: 2.5,
-                ),
-                borderRadius: BorderRadius.circular(16),
+              child: Stack(
+                children: [
+                  // Outer subtle border
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.white12,
+                        width: 1,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  // Glowing Laser Targeting Line
+                  Center(
+                    child: Container(
+                      height: 2,
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFEF4444).withOpacity(0.8),
+                            blurRadius: 6,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Top-Left Corner
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: Color(0xFF10B981), width: 3.5),
+                          left: BorderSide(color: Color(0xFF10B981), width: 3.5),
+                        ),
+                        borderRadius: BorderRadius.only(topLeft: Radius.circular(12)),
+                      ),
+                    ),
+                  ),
+                  // Top-Right Corner
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: Color(0xFF10B981), width: 3.5),
+                          right: BorderSide(color: Color(0xFF10B981), width: 3.5),
+                        ),
+                        borderRadius: BorderRadius.only(topRight: Radius.circular(12)),
+                      ),
+                    ),
+                  ),
+                  // Bottom-Left Corner
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Color(0xFF10B981), width: 3.5),
+                          left: BorderSide(color: Color(0xFF10B981), width: 3.5),
+                        ),
+                        borderRadius: BorderRadius.only(bottomLeft: Radius.circular(12)),
+                      ),
+                    ),
+                  ),
+                  // Bottom-Right Corner
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Color(0xFF10B981), width: 3.5),
+                          right: BorderSide(color: Color(0xFF10B981), width: 3.5),
+                        ),
+                        borderRadius: BorderRadius.only(bottomRight: Radius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -406,6 +494,29 @@ class BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.arrow_back, color: Colors.white),
+                  ),
+                ),
+                // Terminal & Cashier Status Pill
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E293B).withOpacity(0.85),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('🟢 ', style: TextStyle(fontSize: 10)),
+                      Text(
+                        'Terminal #1 • Ready',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Row(

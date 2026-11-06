@@ -150,136 +150,184 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
     ];
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       body: Row(
         children: [
-          NavigationRail(
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: (idx) {
-              setState(() => _selectedIndex = idx);
-              _loadAlertCounts();
-            },
-            labelType: NavigationRailLabelType.all,
-            leading: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Column(
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: WebotAppTheme.darkSlate,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: WebotAppTheme.darkSlate.withOpacity(0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
+          // Executive Dark Desktop Sidebar (Matching Production UI)
+          Container(
+            width: 236,
+            color: WebotAppTheme.darkSlate,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Brand Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E293B),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF334155)),
                         ),
-                      ],
-                    ),
-                    child: const Center(
-                      child: WebotAppLogoMark(size: 26),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  RichText(
-                    textAlign: TextAlign.center,
-                    text: const TextSpan(
-                      style: TextStyle(
-                        fontFamily: 'Roboto',
-                        fontWeight: FontWeight.w900,
-                        fontSize: 11,
-                        letterSpacing: -0.3,
+                        child: const Center(
+                          child: WebotAppLogoMark(size: 22),
+                        ),
                       ),
-                      children: [
-                        TextSpan(
-                          text: 'WEBOT',
-                          style: TextStyle(color: WebotAppTheme.darkSlate),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            RichText(
+                              text: const TextSpan(
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 14,
+                                  letterSpacing: -0.2,
+                                ),
+                                children: [
+                                  TextSpan(text: '⚡ WEBOT', style: TextStyle(color: Colors.white)),
+                                  TextSpan(text: 'APP', style: TextStyle(color: Color(0xFF00C853))),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            const Text(
+                              'POS SYSTEM',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 9,
+                                letterSpacing: 0.8,
+                                color: Color(0xFF94A3B8),
+                              ),
+                            ),
+                          ],
                         ),
-                        TextSpan(
-                          text: 'APP',
-                          style: TextStyle(color: WebotAppTheme.primaryGreen),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(color: Color(0xFF1E293B), height: 1, thickness: 1),
+                const SizedBox(height: 12),
+
+                // Navigation Items List
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    children: [
+                      _buildSidebarItem(
+                        index: 0,
+                        icon: Icons.dashboard_rounded,
+                        label: 'Dashboard',
+                      ),
+                      _buildSidebarItem(
+                        index: 1,
+                        icon: Icons.receipt_long_rounded,
+                        label: 'Sales',
+                      ),
+                      _buildSidebarItem(
+                        index: 2,
+                        icon: Icons.inventory_2_rounded,
+                        label: 'Catalog',
+                      ),
+                      _buildSidebarItem(
+                        index: 3,
+                        icon: Icons.warning_amber_rounded,
+                        label: 'Low Stock',
+                        badgeCount: _lowStockAlertCount,
+                        badgeColor: const Color(0xFFEF4444),
+                      ),
+                      _buildSidebarItem(
+                        index: 4,
+                        icon: Icons.event_busy_rounded,
+                        label: 'Expiry',
+                        badgeCount: _expiringAlertCount,
+                        badgeColor: const Color(0xFFF97316),
+                      ),
+                      _buildSidebarItem(
+                        index: 5,
+                        icon: Icons.badge_rounded,
+                        label: 'Employees',
+                      ),
+                      _buildSidebarItem(
+                        index: 6,
+                        icon: Icons.sync_rounded,
+                        label: 'Terminals',
+                      ),
+                      _buildSidebarItem(
+                        index: 7,
+                        icon: Icons.backup_rounded,
+                        label: 'Backups',
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Bottom Sync Server Daemon Status Card
+                Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF334155)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF10B981),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Color(0xFF10B981),
+                                blurRadius: 6,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Sync Daemon Online',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              SizedBox(height: 1),
+                              Text(
+                                'Port 8085 • Connected',
+                                style: TextStyle(
+                                  color: Color(0xFF94A3B8),
+                                  fontSize: 9,
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'POS SYSTEM',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 8,
-                      letterSpacing: 1.0,
-                      color: WebotAppTheme.slate500,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            destinations: [
-              const NavigationRailDestination(
-                icon: Icon(Icons.dashboard_outlined),
-                selectedIcon: Icon(Icons.dashboard),
-                label: Text('Dashboard'),
-              ),
-              const NavigationRailDestination(
-                icon: Icon(Icons.receipt_long_outlined),
-                selectedIcon: Icon(Icons.receipt_long_rounded),
-                label: Text('Sales'),
-              ),
-              const NavigationRailDestination(
-                icon: Icon(Icons.inventory_2_outlined),
-                selectedIcon: Icon(Icons.inventory_2),
-                label: Text('Catalog'),
-              ),
-              NavigationRailDestination(
-                icon: Badge(
-                  isLabelVisible: _lowStockAlertCount > 0,
-                  backgroundColor: const Color(0xFFEF4444),
-                  label: Text('$_lowStockAlertCount'),
-                  child: const Icon(Icons.warning_amber_rounded),
-                ),
-                selectedIcon: Badge(
-                  isLabelVisible: _lowStockAlertCount > 0,
-                  backgroundColor: const Color(0xFFEF4444),
-                  label: Text('$_lowStockAlertCount'),
-                  child: const Icon(Icons.warning_rounded),
-                ),
-                label: const Text('Low Stock'),
-              ),
-              NavigationRailDestination(
-                icon: Badge(
-                  isLabelVisible: _expiringAlertCount > 0,
-                  backgroundColor: const Color(0xFFF97316),
-                  label: Text('$_expiringAlertCount'),
-                  child: const Icon(Icons.event_busy_outlined),
-                ),
-                selectedIcon: Badge(
-                  isLabelVisible: _expiringAlertCount > 0,
-                  backgroundColor: const Color(0xFFF97316),
-                  label: Text('$_expiringAlertCount'),
-                  child: const Icon(Icons.event_busy_rounded),
-                ),
-                label: const Text('Expiry'),
-              ),
-              const NavigationRailDestination(
-                icon: Icon(Icons.badge_outlined),
-                selectedIcon: Icon(Icons.badge),
-                label: Text('Employees'),
-              ),
-              const NavigationRailDestination(
-                icon: Icon(Icons.sync_rounded),
-                selectedIcon: Icon(Icons.sync),
-                label: Text('Terminals'),
-              ),
-              const NavigationRailDestination(
-                icon: Icon(Icons.backup_outlined),
-                selectedIcon: Icon(Icons.backup),
-                label: Text('Backups'),
-              ),
-            ],
           ),
-          const VerticalDivider(thickness: 1, width: 1, color: Color(0xFFE2E8F0)),
+          const VerticalDivider(thickness: 1, width: 1, color: Color(0xFF1E293B)),
           Expanded(
             child: IndexedStack(
               index: _selectedIndex,
@@ -287,6 +335,88 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSidebarItem({
+    required int index,
+    required IconData icon,
+    required String label,
+    int badgeCount = 0,
+    Color badgeColor = const Color(0xFFEF4444),
+  }) {
+    final isSelected = _selectedIndex == index;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            setState(() => _selectedIndex = index);
+            _loadAlertCounts();
+          },
+          borderRadius: BorderRadius.circular(8),
+          hoverColor: const Color(0xFF1E293B).withOpacity(0.5),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected ? const Color(0xFF1E293B) : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+              border: isSelected
+                  ? Border.all(color: const Color(0xFF334155), width: 1)
+                  : null,
+            ),
+            child: Row(
+              children: [
+                if (isSelected)
+                  Container(
+                    width: 3,
+                    height: 16,
+                    margin: const EdgeInsets.only(right: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6366F1),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                Icon(
+                  icon,
+                  size: 20,
+                  color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+                      fontSize: 13,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                ),
+                if (badgeCount > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: badgeColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$badgeCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

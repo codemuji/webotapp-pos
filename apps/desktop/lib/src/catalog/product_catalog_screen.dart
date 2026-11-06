@@ -1645,9 +1645,28 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
                     color: isLowStock ? const Color(0xFFDC2626) : const Color(0xFF334155),
                   ),
                 ),
+                const SizedBox(height: 4),
+                // Visual Stock Health Gauge (Emil UI)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(3),
+                  child: Container(
+                    height: 5,
+                    width: 72,
+                    color: const Color(0xFFE2E8F0),
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: (p.stockQuantity / (p.minStockAlert <= 0 ? 10 : p.minStockAlert * 3)).clamp(0.05, 1.0),
+                      child: Container(
+                        color: p.stockQuantity <= 0
+                            ? const Color(0xFFEF4444)
+                            : (isLowStock ? const Color(0xFFF59E0B) : const Color(0xFF10B981)),
+                      ),
+                    ),
+                  ),
+                ),
                 if (isLowStock)
                   Container(
-                    margin: const EdgeInsets.only(top: 2),
+                    margin: const EdgeInsets.only(top: 4),
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFEF2F2),
