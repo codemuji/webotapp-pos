@@ -19,6 +19,36 @@ Official production binaries for **v1.0.0** are available on the [Releases page]
 
 ---
 
+## Product Showcase & Interface Tour
+
+### 🖥️ Windows Desktop Admin Node
+
+#### Executive Analytics & Real-Time Sync Dashboard
+*Real-time monitoring of daily revenue velocity, gross profit margins, tender settlement split (UPI, Cash, Card), and live synced transaction feeds from cashier terminals.*
+![Store Executive Dashboard](docs/screenshots/desktop-dashboard.png)
+
+#### Master SKU Catalog & Pack-Size Variants
+*Grocery master catalog management supporting linked pack-size variants (e.g., 500ml / 1L / 5L), barcode tagging, inventory levels, category filtering, and thermal shelf label generation.*
+![Product & Category Catalog](docs/screenshots/desktop-catalog.png)
+
+#### Low Stock Replenishment & Safety Stock Console
+*Real-time depletion alerts, visual stock deficit gauges, 1-click supplier restocking with predefined quantity chips (`+5`, `+10`, `+25`, `+50`, `+100`), and direct CSV export for procurement reordering.*
+![Low Stock Replenishment Console](docs/screenshots/desktop-low-stock-replenishment.png)
+
+#### Perishables Shelf Life & Expiry Management
+*Automated expiry countdown alerts (`EXPIRED`, `EXPIRES TODAY`, `EXPIRES IN X DAYS`), rapid clearance markdown engine (-10% to -50% promotional broadcast), and recorded waste write-offs for damaged stock.*
+![Perishables Expiry Tracker](docs/screenshots/desktop-expiry-tracker.png)
+
+---
+
+### 📱 Android Mobile Cashier Suite
+
+#### High-Speed Barcode Checkout & Digital Thermal Settlement
+*Hardware `ToneGenerator` (2048Hz confirmation chirp) camera scanner with double-scan prevention, zero-drift decimal billing calculations, multi-tier GST breakdown, dynamic UPI QR payment settlement, and Bluetooth/USB 58mm thermal receipt printing.*
+![Android Mobile Cashier Suite](docs/screenshots/mobile-cashier-suite.png)
+
+---
+
 ## Architecture
 
 ```
@@ -119,7 +149,7 @@ flutter run -d <your-device-id>
 
 ## Running Tests
 
-Run the full automated test suite (121 tests across 5 projects):
+Run the full automated test suite (131 tests across 5 projects):
 
 ```powershell
 pwsh -File ./scripts/test_all.ps1
