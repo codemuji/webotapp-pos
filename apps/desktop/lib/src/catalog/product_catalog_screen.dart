@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:database/database.dart';
 import 'package:drift/drift.dart' hide Column;
@@ -24,7 +25,9 @@ class ProductCatalogScreen extends StatefulWidget {
 class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
   List<Product> _allProducts = [];
   List<Category> _categories = [];
+  final Map<String, int> _categoryCounts = {};
   String _searchQuery = '';
+  Timer? _searchDebounce;
   String? _selectedCategoryFilter; // null means 'All'
   bool _filterLowStockOnly = false;
   final Set<String> _selectedProductIds = {};
@@ -50,6 +53,19 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
     _loadData();
   }
 
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String val) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 150), () {
+      if (mounted) setState(() => _searchQuery = val.trim());
+    });
+  }
+
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
@@ -58,10 +74,21 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
     try {
       final products = await widget.database.getAllProducts();
       final categories = await widget.database.getAllCategories();
+      
+      // Precompute category item distribution in O(N) once to eliminate O(C*N) build-time stalls
+      final counts = <String, int>{};
+      for (final p in products) {
+        if (p.categoryId != null) {
+          counts[p.categoryId!] = (counts[p.categoryId!] ?? 0) + 1;
+        }
+      }
+
       if (mounted) {
         setState(() {
           _allProducts = products;
           _categories = categories;
+          _categoryCounts.clear();
+          _categoryCounts.addAll(counts);
           _isLoading = false;
           _loadError = null;
         });
@@ -1346,7 +1373,7 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
                           border: Border.all(color: const Color(0xFFCBD5E1)),
                         ),
                         child: TextField(
-                          onChanged: (val) => setState(() => _searchQuery = val),
+                          onChanged: _onSearchChanged,
                           decoration: const InputDecoration(
                             hintText: 'Search by name, variant, barcode, or SKU...',
                             prefixIcon: Icon(Icons.search, size: 20, color: Color(0xFF64748B)),
@@ -1391,7 +1418,7 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
                               const SizedBox(width: 8),
 
                               ..._categories.map((c) {
-                                final count = _allProducts.where((p) => p.categoryId == c.id).length;
+                                final count = _categoryCounts[c.id] ?? 0;
                                 return Padding(
                                   padding: const EdgeInsets.only(right: 8.0),
                                   child: FilterChip(
@@ -1491,265 +1518,268 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
     final isLowStock = p.stockQuantity <= p.minStockAlert;
     final isSelected = _selectedProductIds.contains(p.id);
 
-    return Container(
-      color: isSelected ? const Color(0xFFF0FDF4) : null,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Row(
-        children: [
-          Checkbox(
-            value: isSelected,
-            onChanged: (val) {
-              setState(() {
-                if (val == true) {
-                  _selectedProductIds.add(p.id);
-                } else {
-                  _selectedProductIds.remove(p.id);
-                }
-              });
-            },
-          ),
-          const SizedBox(width: 8),
+    return RepaintBoundary(
+      key: ValueKey('prod_row_${p.id}'),
+      child: Container(
+        color: isSelected ? const Color(0xFFF0FDF4) : null,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            Checkbox(
+              value: isSelected,
+              onChanged: (val) {
+                setState(() {
+                  if (val == true) {
+                    _selectedProductIds.add(p.id);
+                  } else {
+                    _selectedProductIds.remove(p.id);
+                  }
+                });
+              },
+            ),
+            const SizedBox(width: 8),
 
-          // Product Name & Variant Name
-          Expanded(
-            flex: 3,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              p.name,
-                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0F172A)),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (p.variantName != null && p.variantName!.isNotEmpty) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFEFF6FF),
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: const Color(0xFFBFDBFE)),
-                              ),
+            // Product Name & Variant Name
+            Expanded(
+              flex: 3,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
                               child: Text(
-                                p.variantName!,
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF1D4ED8)),
+                                p.name,
+                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0F172A)),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            if (p.variantName != null && p.variantName!.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEFF6FF),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                                ),
+                                child: Text(
+                                  p.variantName!,
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF1D4ED8)),
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
-                      ),
-                      if (p.parentProductId != null)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 2.0),
-                          child: Text(
-                            '↳ Linked pack-size variant',
-                            style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                          ),
                         ),
+                        if (p.parentProductId != null)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 2.0),
+                            child: Text(
+                              '↳ Linked pack-size variant',
+                              style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Barcodes & SKU
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.qr_code_2_rounded, size: 14, color: Color(0xFF64748B)),
+                      const SizedBox(width: 4),
+                      Text(
+                        p.barcode ?? '-',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontFamily: 'monospace'),
+                      ),
                     ],
                   ),
-                ),
-              ],
-            ),
-          ),
-
-          // Barcodes & SKU
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.qr_code_2_rounded, size: 14, color: Color(0xFF64748B)),
-                    const SizedBox(width: 4),
+                  if (p.secondaryBarcode != null && p.secondaryBarcode!.isNotEmpty)
                     Text(
-                      p.barcode ?? '-',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontFamily: 'monospace'),
+                      'Alt: ${p.secondaryBarcode}',
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontFamily: 'monospace'),
                     ),
-                  ],
-                ),
-                if (p.secondaryBarcode != null && p.secondaryBarcode!.isNotEmpty)
+                  if (p.sku != null && p.sku!.isNotEmpty)
+                    Text(
+                      'SKU: ${p.sku!}',
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                    ),
+                ],
+              ),
+            ),
+
+            // Category & Tax
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    'Alt: ${p.secondaryBarcode}',
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontFamily: 'monospace'),
+                    catName,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
                   ),
-                if (p.sku != null && p.sku!.isNotEmpty)
                   Text(
-                    'SKU: ${p.sku!}',
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                    p.taxRate == 0 ? '0% GST' : '${p.taxRate}% GST',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                   ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          // Category & Tax
-          Expanded(
-            flex: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  catName,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
-                ),
-                Text(
-                  p.taxRate == 0 ? '0% GST' : '${p.taxRate}% GST',
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                ),
-              ],
+            // Selling Price
+            Expanded(
+              flex: 2,
+              child: Text(
+                '₹${p.sellingPrice.toStringAsFixed(2)}',
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFF0F172A)),
+              ),
             ),
-          ),
 
-          // Selling Price
-          Expanded(
-            flex: 2,
-            child: Text(
-              '₹${p.sellingPrice.toStringAsFixed(2)}',
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFF0F172A)),
+            // Purchase Price
+            Expanded(
+              flex: 2,
+              child: Text(
+                p.purchasePrice != null ? '₹${p.purchasePrice!.toStringAsFixed(2)}' : '-',
+                style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              ),
             ),
-          ),
 
-          // Purchase Price
-          Expanded(
-            flex: 2,
-            child: Text(
-              p.purchasePrice != null ? '₹${p.purchasePrice!.toStringAsFixed(2)}' : '-',
-              style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-            ),
-          ),
-
-          // Stock Level & Low Stock Chip
-          Expanded(
-            flex: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${p.stockQuantity} ${p.unit}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: isLowStock ? const Color(0xFFDC2626) : const Color(0xFF334155),
+            // Stock Level & Low Stock Chip
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${p.stockQuantity} ${p.unit}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: isLowStock ? const Color(0xFFDC2626) : const Color(0xFF334155),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                // Visual Stock Health Gauge (Emil UI)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: Container(
-                    height: 5,
-                    width: 72,
-                    color: const Color(0xFFE2E8F0),
-                    alignment: Alignment.centerLeft,
-                    child: FractionallySizedBox(
-                      widthFactor: (p.stockQuantity / (p.minStockAlert <= 0 ? 10 : p.minStockAlert * 3)).clamp(0.05, 1.0),
-                      child: Container(
-                        color: p.stockQuantity <= 0
-                            ? const Color(0xFFEF4444)
-                            : (isLowStock ? const Color(0xFFF59E0B) : const Color(0xFF10B981)),
+                  const SizedBox(height: 4),
+                  // Visual Stock Health Gauge (Emil UI)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    child: Container(
+                      height: 5,
+                      width: 72,
+                      color: const Color(0xFFE2E8F0),
+                      alignment: Alignment.centerLeft,
+                      child: FractionallySizedBox(
+                        widthFactor: (p.stockQuantity / (p.minStockAlert <= 0 ? 10 : p.minStockAlert * 3)).clamp(0.05, 1.0),
+                        child: Container(
+                          color: p.stockQuantity <= 0
+                              ? const Color(0xFFEF4444)
+                              : (isLowStock ? const Color(0xFFF59E0B) : const Color(0xFF10B981)),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                if (isLowStock)
-                  Container(
-                    margin: const EdgeInsets.only(top: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: const Color(0xFFFECACA)),
+                  if (isLowStock)
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: const Color(0xFFFECACA)),
+                      ),
+                      child: const Text(
+                        'Low Stock',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)),
+                      ),
                     ),
-                    child: const Text(
-                      'Low Stock',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)),
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          // Status Badge
-          Expanded(
-            flex: 1,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: p.isActive ? const Color(0xFFECFDF5) : const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: p.isActive ? const Color(0xFFA7F3D0) : const Color(0xFFCBD5E1),
+            // Status Badge
+            Expanded(
+              flex: 1,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: p.isActive ? const Color(0xFFECFDF5) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: p.isActive ? const Color(0xFFA7F3D0) : const Color(0xFFCBD5E1),
+                    ),
                   ),
-                ),
-                child: Text(
-                  p.isActive ? 'Active' : 'Inactive',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: p.isActive ? const Color(0xFF059669) : const Color(0xFF64748B),
+                  child: Text(
+                    p.isActive ? 'Active' : 'Inactive',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: p.isActive ? const Color(0xFF059669) : const Color(0xFF64748B),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
 
-          // Quick Actions (Print Sticker, Quick Restock, Edit, Toggle)
-          Expanded(
-            flex: 4,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  icon: const Icon(Icons.print_rounded, size: 18, color: Color(0xFF0284C7)),
-                  tooltip: 'Print Thermal Barcode Sticker',
-                  onPressed: () => _printBarcodeSticker(p),
-                ),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  icon: const Icon(Icons.add_shopping_cart_rounded, size: 18, color: Color(0xFF10B981)),
-                  tooltip: 'Quick Restock / Stock Adjust',
-                  onPressed: () => _showQuickStockDialog(p),
-                ),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF64748B)),
-                  tooltip: 'Edit Product & Pack Size',
-                  onPressed: () => _showProductDialog(p),
-                ),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  key: Key('toggle_active_${p.id}'),
-                  icon: Icon(
-                    p.isActive ? Icons.toggle_on : Icons.toggle_off,
-                    size: 26,
-                    color: p.isActive ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+            // Quick Actions (Print Sticker, Quick Restock, Edit, Toggle)
+            Expanded(
+              flex: 4,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    icon: const Icon(Icons.print_rounded, size: 18, color: Color(0xFF0284C7)),
+                    tooltip: 'Print Thermal Barcode Sticker',
+                    onPressed: () => _printBarcodeSticker(p),
                   ),
-                  tooltip: p.isActive ? 'Deactivate' : 'Activate',
-                  onPressed: () => _toggleProduct(p),
-                ),
-              ],
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    icon: const Icon(Icons.add_shopping_cart_rounded, size: 18, color: Color(0xFF10B981)),
+                    tooltip: 'Quick Restock / Stock Adjust',
+                    onPressed: () => _showQuickStockDialog(p),
+                  ),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF64748B)),
+                    tooltip: 'Edit Product & Pack Size',
+                    onPressed: () => _showProductDialog(p),
+                  ),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    key: Key('toggle_active_${p.id}'),
+                    icon: Icon(
+                      p.isActive ? Icons.toggle_on : Icons.toggle_off,
+                      size: 26,
+                      color: p.isActive ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                    ),
+                    tooltip: p.isActive ? 'Deactivate' : 'Activate',
+                    onPressed: () => _toggleProduct(p),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

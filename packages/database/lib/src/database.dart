@@ -491,6 +491,7 @@ class AppDatabase extends _$AppDatabase {
     DateTime? endDate,
     String? paymentMethod,
     int? limit,
+    int? offset,
   }) async {
     var query = select(invoices);
     if (startDate != null) {
@@ -504,7 +505,7 @@ class AppDatabase extends _$AppDatabase {
     }
     query = query..orderBy([(tbl) => OrderingTerm(expression: tbl.createdAt, mode: OrderingMode.desc)]);
     if (limit != null) {
-      query = query..limit(limit);
+      query = query..limit(limit, offset: offset);
     }
     return query.get();
   }
@@ -520,14 +521,40 @@ class AppDatabase extends _$AppDatabase {
     return InvoiceWithItems(invoice: inv, items: items);
   }
 
-  Future<List<InvoiceWithItems>> getRecentInvoicesWithItems({int limit = 10}) async {
-    final invs = await getAllInvoices(limit: limit);
-    final results = <InvoiceWithItems>[];
-    for (final inv in invs) {
-      final items = await getInvoiceItems(inv.id);
-      results.add(InvoiceWithItems(invoice: inv, items: items));
+  /// High-performance batch retrieval of invoices and line items.
+  /// Eliminates the N+1 query storm by executing exactly 2 queries: one for invoices,
+  /// and one batch query for all corresponding line items.
+  Future<List<InvoiceWithItems>> getAllInvoicesWithItems({
+    DateTime? startDate,
+    DateTime? endDate,
+    String? paymentMethod,
+    int? limit,
+    int? offset,
+  }) async {
+    final invs = await getAllInvoices(
+      startDate: startDate,
+      endDate: endDate,
+      paymentMethod: paymentMethod,
+      limit: limit,
+      offset: offset,
+    );
+    if (invs.isEmpty) return const [];
+
+    final invIds = invs.map((i) => i.id).toList();
+    final allItems = await (select(invoiceItems)..where((tbl) => tbl.invoiceId.isIn(invIds))).get();
+
+    final itemMap = <String, List<InvoiceItem>>{};
+    for (final item in allItems) {
+      itemMap.putIfAbsent(item.invoiceId, () => []).add(item);
     }
-    return results;
+
+    return invs.map((inv) {
+      return InvoiceWithItems(invoice: inv, items: itemMap[inv.id] ?? const []);
+    }).toList();
+  }
+
+  Future<List<InvoiceWithItems>> getRecentInvoicesWithItems({int limit = 10}) {
+    return getAllInvoicesWithItems(limit: limit);
   }
 }
 

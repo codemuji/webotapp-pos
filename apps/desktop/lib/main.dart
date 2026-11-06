@@ -99,6 +99,7 @@ class GroceryPosDesktopAdminApp extends ConsumerWidget {
       title: 'WebotApp POS — Store Admin Node',
       debugShowCheckedModeBanner: false,
       theme: WebotAppTheme.lightTheme,
+      scrollBehavior: const DesktopSmoothScrollBehavior(),
       home: const AdminShellView(),
     );
   }
@@ -115,6 +116,9 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
   int _selectedIndex = 0;
   int _lowStockAlertCount = 0;
   int _expiringAlertCount = 0;
+  List<Widget>? _cachedScreens;
+  AppDatabase? _lastDb;
+  SyncServer? _lastServer;
 
   @override
   void initState() {
@@ -136,24 +140,32 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
     } catch (_) {}
   }
 
+  List<Widget> _getScreens(AppDatabase db, SyncServer server) {
+    if (_cachedScreens == null || _lastDb != db || _lastServer != server) {
+      _lastDb = db;
+      _lastServer = server;
+      _cachedScreens = [
+        AdminDashboardScreen(
+          database: db,
+          onNavigateToSales: () => setState(() => _selectedIndex = 1),
+        ),
+        SalesTransactionsScreen(database: db),
+        ProductCatalogScreen(database: db),
+        LowStockScreen(database: db),
+        ExpiryTrackerScreen(database: db),
+        EmployeeManagementScreen(database: db),
+        SyncServerScreen(database: db, storeName: 'WebotApp Store', server: server),
+        BackupRestoreScreen(database: db, isSimulationMode: true),
+      ];
+    }
+    return _cachedScreens!;
+  }
+
   @override
   Widget build(BuildContext context) {
     final db = ref.watch(adminDatabaseProvider);
     final server = ref.watch(desktopSyncServerProvider);
-
-    final screens = [
-      AdminDashboardScreen(
-        database: db,
-        onNavigateToSales: () => setState(() => _selectedIndex = 1),
-      ),
-      SalesTransactionsScreen(database: db),
-      ProductCatalogScreen(database: db),
-      LowStockScreen(database: db),
-      ExpiryTrackerScreen(database: db),
-      EmployeeManagementScreen(database: db),
-      SyncServerScreen(database: db, storeName: 'WebotApp Store', server: server),
-      BackupRestoreScreen(database: db, isSimulationMode: true),
-    ];
+    final screens = _getScreens(db, server);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -335,7 +347,7 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
           ),
           const VerticalDivider(thickness: 1, width: 1, color: Color(0xFF1E293B)),
           Expanded(
-            child: IndexedStack(
+            child: FadeIndexedStack(
               index: _selectedIndex,
               children: screens,
             ),
@@ -360,8 +372,9 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            setState(() => _selectedIndex = index);
-            _loadAlertCounts();
+            if (_selectedIndex != index) {
+              setState(() => _selectedIndex = index);
+            }
           },
           borderRadius: BorderRadius.circular(8),
           hoverColor: const Color(0xFF1E293B).withOpacity(0.5),
@@ -427,3 +440,60 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
     );
   }
 }
+
+/// High-performance cross-fade transition wrapper over [IndexedStack].
+/// Retains active widget state while delivering smooth 160ms ease-out transitions between tabs.
+class FadeIndexedStack extends StatefulWidget {
+  final int index;
+  final List<Widget> children;
+  final Duration duration;
+
+  const FadeIndexedStack({
+    super.key,
+    required this.index,
+    required this.children,
+    this.duration = const Duration(milliseconds: 160),
+  });
+
+  @override
+  State<FadeIndexedStack> createState() => _FadeIndexedStackState();
+}
+
+class _FadeIndexedStackState extends State<FadeIndexedStack> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: widget.duration);
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+    _controller.value = 1.0;
+  }
+
+  @override
+  void didUpdateWidget(FadeIndexedStack oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.index != oldWidget.index) {
+      _controller.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _animation,
+      child: IndexedStack(
+        index: widget.index,
+        children: widget.children,
+      ),
+    );
+  }
+}
+

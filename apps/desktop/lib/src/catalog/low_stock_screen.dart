@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:database/database.dart';
 import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
@@ -23,6 +24,7 @@ class _LowStockScreenState extends State<LowStockScreen> {
   List<Category> _categories = [];
   bool _isLoading = true;
   String _searchQuery = '';
+  Timer? _searchDebounce;
   String? _selectedCategoryId;
   String _statusFilter = 'all'; // 'all', 'out_of_stock', 'critical'
 
@@ -32,6 +34,12 @@ class _LowStockScreenState extends State<LowStockScreen> {
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -450,7 +458,12 @@ class _LowStockScreenState extends State<LowStockScreen> {
                   Expanded(
                     flex: 3,
                     child: TextField(
-                      onChanged: (val) => setState(() => _searchQuery = val.trim()),
+                      onChanged: (val) {
+                        _searchDebounce?.cancel();
+                        _searchDebounce = Timer(const Duration(milliseconds: 150), () {
+                          if (mounted) setState(() => _searchQuery = val.trim());
+                        });
+                      },
                       decoration: const InputDecoration(
                         hintText: 'Search product name, SKU, or barcode...',
                         prefixIcon: Icon(Icons.search, size: 20),
@@ -561,9 +574,11 @@ class _LowStockScreenState extends State<LowStockScreen> {
             ? 'CRITICAL DEFICIT'
             : 'LOW STOCK';
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
+    return RepaintBoundary(
+      key: ValueKey('low_stock_row_${p.id}'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
         children: [
           // Product name and sku
           Expanded(
@@ -697,8 +712,9 @@ class _LowStockScreenState extends State<LowStockScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildFilterChip(String label, String value, {bool isRed = false, bool isOrange = false}) {
     final isSelected = _statusFilter == value;

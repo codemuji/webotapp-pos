@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:database/database.dart';
 import 'package:drift/drift.dart' hide Column, isNotNull, isNull;
@@ -24,6 +25,7 @@ class _ExpiryTrackerScreenState extends State<ExpiryTrackerScreen> {
   List<Category> _categories = [];
   bool _isLoading = true;
   String _searchQuery = '';
+  Timer? _searchDebounce;
   String? _selectedCategoryId;
   String _filterMode = 'all'; // 'all', 'expired', '7_days', '30_days'
 
@@ -34,6 +36,12 @@ class _ExpiryTrackerScreenState extends State<ExpiryTrackerScreen> {
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -515,7 +523,12 @@ class _ExpiryTrackerScreenState extends State<ExpiryTrackerScreen> {
                   Expanded(
                     flex: 3,
                     child: TextField(
-                      onChanged: (val) => setState(() => _searchQuery = val.trim()),
+                      onChanged: (val) {
+                        _searchDebounce?.cancel();
+                        _searchDebounce = Timer(const Duration(milliseconds: 150), () {
+                          if (mounted) setState(() => _searchQuery = val.trim());
+                        });
+                      },
                       decoration: const InputDecoration(
                         hintText: 'Search product, barcode, or batch no...',
                         prefixIcon: Icon(Icons.search, size: 20),
@@ -640,9 +653,11 @@ class _ExpiryTrackerScreenState extends State<ExpiryTrackerScreen> {
                     ? 'EXPIRES IN $diffDays DAYS'
                     : '$diffDays DAYS LEFT';
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
+    return RepaintBoundary(
+      key: ValueKey('expiry_row_${p.id}'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
         children: [
           // Product name and batch
           Expanded(
@@ -792,8 +807,9 @@ class _ExpiryTrackerScreenState extends State<ExpiryTrackerScreen> {
             ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildFilterChip(String label, String value, {bool isRed = false, bool isOrange = false, bool isAmber = false}) {
     final isSelected = _filterMode == value;

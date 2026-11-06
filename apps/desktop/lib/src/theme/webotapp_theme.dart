@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 /// WebotApp Official Brand Theme & Color Palette
@@ -27,6 +28,9 @@ class WebotAppTheme {
 
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
+    // Eliminates expensive InkSparkle GPU fragment shader on desktop clicks/hovers
+    splashFactory: InkRipple.splashFactory,
+    visualDensity: VisualDensity.adaptivePlatformDensity,
     colorScheme: ColorScheme.fromSeed(
       seedColor: primaryGreen,
       primary: primaryGreen,
@@ -44,4 +48,24 @@ class WebotAppTheme {
     ),
   );
 }
+
+/// High-performance desktop scroll behavior enabling smooth mouse wheel panning,
+/// drag gesture support, and fluid micro-inertia across desktop viewports.
+class DesktopSmoothScrollBehavior extends MaterialScrollBehavior {
+  const DesktopSmoothScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+        PointerDeviceKind.stylus,
+      };
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+  }
+}
+
 
