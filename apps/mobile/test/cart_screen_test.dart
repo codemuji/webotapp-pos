@@ -17,7 +17,7 @@ void main() {
       );
 
       expect(find.text('Cart is empty'), findsOneWidget);
-      expect(find.text('Scan products or search to begin checkout'), findsOneWidget);
+      expect(find.text('Scan products or browse catalog to begin checkout'), findsOneWidget);
     });
 
     testWidgets('renders items with fixed-height rows and instant totals', (tester) async {

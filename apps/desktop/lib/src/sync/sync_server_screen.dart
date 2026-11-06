@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:database/database.dart';
 import 'package:flutter/material.dart';
@@ -14,7 +15,7 @@ class SyncServerScreen extends StatefulWidget {
   const SyncServerScreen({
     super.key,
     required this.database,
-    this.storeName = 'FreshMart Store',
+    this.storeName = 'WebotApp Store',
     this.isSimulationMode = false,
     this.server,
   });
@@ -28,6 +29,8 @@ class SyncServerScreenState extends State<SyncServerScreen> {
   PairingQrPayload? _qrPayload;
   List<Device> _devices = [];
   bool _isSimulatedRunning = false;
+  StreamSubscription<bool>? _serverStatusSub;
+  String? _serverError;
 
   @override
   void initState() {
@@ -37,24 +40,64 @@ class SyncServerScreenState extends State<SyncServerScreen> {
           database: widget.database,
           storeName: widget.storeName,
         );
+    _serverStatusSub = _server.statusStream.listen((isRunning) {
+      if (mounted) {
+        if (isRunning) {
+          _initQrIfRunning();
+        } else {
+          setState(() {
+            _qrPayload = null;
+          });
+        }
+      }
+    });
     _loadDevices();
     _initQrIfRunning();
   }
 
   Future<void> _initQrIfRunning() async {
-    if (!widget.isSimulationMode && _server.isRunning) {
+    if (widget.isSimulationMode) return;
+    if (!_server.isRunning) {
+      try {
+        await _server.start(host: InternetAddress.anyIPv4, port: 8085);
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _serverError = 'Auto-start failed: $e';
+          });
+        }
+        return;
+      }
+    }
+    if (_server.isRunning) {
       final ip = await _detectLocalIp();
       final qr = _server.generatePairingQrPayload(host: ip);
       if (mounted) {
         setState(() {
           _qrPayload = qr;
+          _serverError = null;
         });
       }
     }
   }
 
+  Future<void> _rotateKey() async {
+    if (widget.isSimulationMode) return;
+    final ip = await _detectLocalIp();
+    final qr = _server.rotatePairingSecret(host: ip);
+    if (mounted) {
+      setState(() {
+        _qrPayload = qr;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pairing secret key refreshed')),
+      );
+    }
+  }
+
   @override
   void dispose() {
+    _serverStatusSub?.cancel();
     if (!widget.isSimulationMode && widget.server == null) {
       _server.stop();
     }
@@ -122,20 +165,33 @@ class SyncServerScreenState extends State<SyncServerScreen> {
         if (mounted) {
           setState(() {
             _qrPayload = null;
+            _serverError = null;
           });
         }
       } else {
+        _serverError = null;
         await _server.start(host: InternetAddress.anyIPv4, port: 8085);
         final ip = await _detectLocalIp();
         final qr = _server.generatePairingQrPayload(host: ip);
         if (mounted) {
           setState(() {
             _qrPayload = qr;
+            _serverError = null;
           });
         }
       }
     } catch (e) {
-      debugPrint('Error toggling server: $e');
+      if (mounted) {
+        setState(() {
+          _serverError = e.toString();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Server Error: $e'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
     }
   }
 
@@ -289,9 +345,22 @@ class SyncServerScreenState extends State<SyncServerScreen> {
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(color: const Color(0xFFCBD5E1)),
                           ),
-                          child: Text(
-                            'KEY: ${_qrPayload!.pairingSecret}',
-                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 1),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'KEY: ${_qrPayload!.pairingSecret}',
+                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 1),
+                              ),
+                              if (!widget.isSimulationMode) ...[
+                                const SizedBox(width: 4),
+                                InkWell(
+                                  onTap: _rotateKey,
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: const Icon(Icons.refresh, size: 14, color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                       ],
@@ -319,6 +388,27 @@ class SyncServerScreenState extends State<SyncServerScreen> {
                               const SizedBox(width: 12),
                               _buildInfoPill('SECRET', _qrPayload!.pairingSecret),
                             ],
+                          ),
+                          const SizedBox(height: 14),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFFDE68A)),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.wifi_rounded, size: 16, color: Color(0xFFD97706)),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Connect phone to the same Wi-Fi network (turn off 5G data on mobile). If blocked, run allow_firewall_sync_port.bat as Administrator.',
+                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF92400E)),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),

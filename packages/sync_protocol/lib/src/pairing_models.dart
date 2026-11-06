@@ -34,7 +34,7 @@ class PairingQrPayload {
       host: json['host'] as String,
       port: (json['port'] as num).toInt(),
       pairingSecret: json['pairingSecret'] as String,
-      storeName: json['storeName'] as String? ?? 'FreshMart Store',
+      storeName: json['storeName'] as String? ?? 'WebotApp Store',
     );
   }
 

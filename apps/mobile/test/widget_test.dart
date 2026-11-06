@@ -10,7 +10,8 @@ void main() {
       ),
     );
 
-    expect(find.text('Counter POS'), findsOneWidget);
+    expect(find.text('Counter POS'), findsWidgets);
+    expect(find.text('Catalog'), findsOneWidget);
     expect(find.text('Cart is empty'), findsOneWidget);
   });
 }

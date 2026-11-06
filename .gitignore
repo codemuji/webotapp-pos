@@ -42,3 +42,12 @@ migrate_working_dir/
 **/windows/flutter/ephemeral/
 **/windows/flutter/CMakeLists.txt.user
 
+# Distribution & Local Databases
+dist/
+packaging/output/
+*.db
+*.db-shm
+*.db-wal
+desktop_crash.log
+
+

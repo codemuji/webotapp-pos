@@ -37,6 +37,7 @@ class BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
   String? _scanFeedbackMessage;
   bool _isFeedbackSuccess = true;
   Timer? _feedbackTimer;
+  bool _isProcessingScan = false;
 
   @override
   void initState() {
@@ -49,6 +50,7 @@ class BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
     if (!widget.isSimulationMode) {
       _scannerController = MobileScannerController(
         detectionSpeed: DetectionSpeed.normal,
+        detectionTimeoutMs: 750,
         facing: CameraFacing.back,
         torchEnabled: false,
         formats: const [BarcodeFormat.all],
@@ -68,9 +70,13 @@ class BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
   }
 
   Future<void> _refreshCatalogCount() async {
-    final prods = await widget.database.getAllProducts();
-    if (mounted) {
-      setState(() => _localProductCount = prods.length);
+    try {
+      final prods = await widget.database.getAllProducts();
+      if (mounted) {
+        setState(() => _localProductCount = prods.length);
+      }
+    } catch (e) {
+      debugPrint('Error refreshing catalog count: $e');
     }
   }
 
@@ -111,33 +117,38 @@ class BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
   /// Process an incoming raw barcode string from camera, simulation, or manual entry
   Future<void> handleBarcode(String rawBarcode) async {
     final cleanBarcode = rawBarcode.trim();
-    if (cleanBarcode.isEmpty) return;
+    if (cleanBarcode.isEmpty || _isProcessingScan) return;
 
-    final result = await _scanHandler.onBarcodeScanned(cleanBarcode);
-    if (!mounted) return;
+    _isProcessingScan = true;
+    try {
+      final result = await _scanHandler.onBarcodeScanned(cleanBarcode);
+      if (!mounted) return;
 
-    if (result.status == ScanStatus.found) {
-      setState(() {
-        _scanFeedbackMessage = '✓ Added ${result.product!.name} (₹${result.product!.sellingPrice.toStringAsFixed(2)})';
-        _isFeedbackSuccess = true;
-      });
-      _scheduleFeedbackDismiss();
-    } else if (result.status == ScanStatus.notFound) {
-      setState(() {
-        _scanFeedbackMessage = '⚠️ Barcode "$cleanBarcode" not found in catalog';
-        _isFeedbackSuccess = false;
-      });
-      _scheduleFeedbackDismiss();
+      if (result.status == ScanStatus.found) {
+        setState(() {
+          _scanFeedbackMessage = '✓ Added ${result.product!.name} (₹${result.product!.sellingPrice.toStringAsFixed(2)})';
+          _isFeedbackSuccess = true;
+        });
+        _scheduleFeedbackDismiss();
+      } else if (result.status == ScanStatus.notFound) {
+        setState(() {
+          _scanFeedbackMessage = '⚠️ Barcode "$cleanBarcode" not found in catalog';
+          _isFeedbackSuccess = false;
+        });
+        _scheduleFeedbackDismiss();
 
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Barcode $rawBarcode not found in catalog'),
-          backgroundColor: const Color(0xFFEF4444),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Barcode $rawBarcode not found in catalog'),
+            backgroundColor: const Color(0xFFEF4444),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      _isProcessingScan = false;
     }
   }
 

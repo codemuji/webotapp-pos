@@ -20,7 +20,12 @@ void main() {
 
     // Starts on Dashboard
     expect(find.text('Store Executive Dashboard'), findsOneWidget);
-    expect(find.text('FreshMart'), findsOneWidget);
+    expect(find.text('POS SYSTEM'), findsOneWidget);
+
+    // Switch to Sales
+    await tester.tap(find.text('Sales'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sales & Invoices History'), findsOneWidget);
 
     // Switch to Catalog
     await tester.tap(find.text('Catalog'));

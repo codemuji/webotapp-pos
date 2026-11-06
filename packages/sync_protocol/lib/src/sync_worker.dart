@@ -41,7 +41,18 @@ class SyncQueueWorker {
     required String baseUrl,
     required String bearerToken,
   }) async {
-    final pendingItems = await database.getPendingSyncItems();
+    List<SyncQueueData> pendingItems = [];
+    try {
+      pendingItems = await database.getPendingSyncItems();
+    } catch (e) {
+      return SyncWorkerResult(
+        syncedInvoicesCount: 0,
+        failedInvoicesCount: 0,
+        catalogUpdatedCount: 0,
+        networkError: 'Local database error: $e',
+        catalogError: 'Local database error: $e',
+      );
+    }
     int syncedCount = 0;
     int failedCount = 0;
     int catalogUpdatedCount = 0;
@@ -76,7 +87,7 @@ class SyncQueueWorker {
               'Authorization': 'Bearer $bearerToken',
             },
             body: jsonEncode({'invoices': invoicesBatch}),
-          );
+          ).timeout(const Duration(seconds: 15));
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -115,7 +126,7 @@ class SyncQueueWorker {
         headers: {
           'Authorization': 'Bearer $bearerToken',
         },
-      );
+      ).timeout(const Duration(seconds: 15));
 
       if (catalogResponse.statusCode == 200) {
         final catalogData = jsonDecode(catalogResponse.body) as Map<String, dynamic>;
@@ -128,6 +139,8 @@ class SyncQueueWorker {
               id: cat['id'] as String,
               name: cat['name'] as String,
               description: Value(cat['description'] as String?),
+              defaultTaxRate: Value((cat['defaultTaxRate'] as num?)?.toDouble() ?? 0.0),
+              defaultHsnCode: Value(cat['defaultHsnCode'] as String?),
             ),
           );
         }
@@ -138,10 +151,18 @@ class SyncQueueWorker {
               id: prod['id'] as String,
               name: prod['name'] as String,
               barcode: Value(prod['barcode'] as String?),
+              secondaryBarcode: Value(prod['secondaryBarcode'] as String?),
               sku: Value(prod['sku'] as String?),
               categoryId: Value(prod['categoryId'] as String?),
               sellingPrice: (prod['sellingPrice'] as num).toDouble(),
+              purchasePrice: Value((prod['purchasePrice'] as num?)?.toDouble()),
+              stockQuantity: Value((prod['stockQuantity'] as num?)?.toDouble() ?? 0.0),
               unit: Value(prod['unit'] as String? ?? 'pcs'),
+              parentProductId: Value(prod['parentProductId'] as String?),
+              variantName: Value(prod['variantName'] as String?),
+              taxRate: Value((prod['taxRate'] as num?)?.toDouble() ?? 0.0),
+              hsnCode: Value(prod['hsnCode'] as String?),
+              minStockAlert: Value((prod['minStockAlert'] as num?)?.toDouble() ?? 5.0),
               updatedAt: DateTime.now(),
             ),
           );

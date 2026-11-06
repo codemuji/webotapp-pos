@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:database/database.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +10,19 @@ import 'src/backup/backup_restore_screen.dart';
 import 'src/catalog/product_catalog_screen.dart';
 import 'src/dashboard/admin_dashboard_screen.dart';
 import 'src/employees/employee_management_screen.dart';
+import 'src/sales/sales_transactions_screen.dart';
 import 'src/sync/sync_server_screen.dart';
+import 'src/theme/webotapp_logo.dart';
+import 'src/theme/webotapp_theme.dart';
+
+void _logCrash(Object error, StackTrace stack) {
+  try {
+    getApplicationSupportDirectory().then((dir) {
+      final file = File(p.join(dir.path, 'desktop_crash.log'));
+      file.writeAsStringSync('CRASH [${DateTime.now()}]: $error\n$stack\n', mode: FileMode.append);
+    });
+  } catch (_) {}
+}
 
 final adminDatabaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase.inMemory();
@@ -19,10 +32,11 @@ final adminDatabaseProvider = Provider<AppDatabase>((ref) {
 
 final desktopSyncServerProvider = Provider<SyncServer>((ref) {
   final db = ref.watch(adminDatabaseProvider);
-  final server = SyncServer(database: db, storeName: 'FreshMart Store');
+  final server = SyncServer(database: db, storeName: 'WebotApp Store');
   // Auto-start server in background across all views (skipped in widget tests to avoid port conflicts)
   if (!Platform.environment.containsKey('FLUTTER_TEST')) {
-    server.start(host: InternetAddress.anyIPv4, port: 8085).catchError((e) {
+    server.start(host: InternetAddress.anyIPv4, port: 8085).catchError((e, st) {
+      _logCrash(e, st);
       debugPrint('Auto-start sync server error on port 8085: $e');
     });
   }
@@ -33,27 +47,36 @@ final desktopSyncServerProvider = Provider<SyncServer>((ref) {
 });
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  AppDatabase? db;
-  try {
-    final appDir = await getApplicationSupportDirectory();
-    if (!await appDir.exists()) {
-      await appDir.create(recursive: true);
-    }
-    final dbFile = File(p.join(appDir.path, 'grocery_pos_admin.db'));
-    db = AppDatabase.fromFile(dbFile);
-  } catch (e) {
-    debugPrint('Could not initialize persistent admin database: $e');
-  }
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    FlutterError.onError = (details) {
+      _logCrash(details.exception, details.stack ?? StackTrace.current);
+    };
 
-  runApp(
-    ProviderScope(
-      overrides: [
-        if (db != null) adminDatabaseProvider.overrideWithValue(db),
-      ],
-      child: const GroceryPosDesktopAdminApp(),
-    ),
-  );
+    AppDatabase? db;
+    try {
+      final appDir = await getApplicationSupportDirectory();
+      if (!await appDir.exists()) {
+        await appDir.create(recursive: true);
+      }
+      final dbFile = File(p.join(appDir.path, 'grocery_pos_admin.db'));
+      db = AppDatabase.fromFile(dbFile);
+    } catch (e, st) {
+      _logCrash(e, st);
+      debugPrint('Could not initialize persistent admin database: $e');
+    }
+
+    runApp(
+      ProviderScope(
+        overrides: [
+          if (db != null) adminDatabaseProvider.overrideWithValue(db),
+        ],
+        child: const GroceryPosDesktopAdminApp(),
+      ),
+    );
+  }, (error, stack) {
+    _logCrash(error, stack);
+  });
 }
 
 class GroceryPosDesktopAdminApp extends ConsumerWidget {
@@ -65,16 +88,9 @@ class GroceryPosDesktopAdminApp extends ConsumerWidget {
     ref.watch(desktopSyncServerProvider);
 
     return MaterialApp(
-      title: 'Grocery POS - Store Admin Node',
+      title: 'WebotApp POS — Store Admin Node',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF10B981), // Emerald
-          primary: const Color(0xFF10B981),
-        ),
-        fontFamily: 'Roboto',
-      ),
+      theme: WebotAppTheme.lightTheme,
       home: const AdminShellView(),
     );
   }
@@ -96,10 +112,14 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
     final server = ref.watch(desktopSyncServerProvider);
 
     final screens = [
-      AdminDashboardScreen(database: db),
+      AdminDashboardScreen(
+        database: db,
+        onNavigateToSales: () => setState(() => _selectedIndex = 1),
+      ),
+      SalesTransactionsScreen(database: db),
       ProductCatalogScreen(database: db),
       EmployeeManagementScreen(database: db),
-      SyncServerScreen(database: db, storeName: 'FreshMart Store', server: server),
+      SyncServerScreen(database: db, storeName: 'WebotApp Store', server: server),
       BackupRestoreScreen(database: db, isSimulationMode: true),
     ];
 
@@ -115,18 +135,54 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
               child: Column(
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 50,
+                    height: 50,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981),
-                      borderRadius: BorderRadius.circular(12),
+                      color: WebotAppTheme.darkSlate,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: WebotAppTheme.darkSlate.withOpacity(0.2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
-                    child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 24),
+                    child: const Center(
+                      child: WebotAppLogoMark(size: 26),
+                    ),
                   ),
                   const SizedBox(height: 8),
+                  RichText(
+                    textAlign: TextAlign.center,
+                    text: const TextSpan(
+                      style: TextStyle(
+                        fontFamily: 'Roboto',
+                        fontWeight: FontWeight.w900,
+                        fontSize: 11,
+                        letterSpacing: -0.3,
+                      ),
+                      children: [
+                        TextSpan(
+                          text: 'WEBOT',
+                          style: TextStyle(color: WebotAppTheme.darkSlate),
+                        ),
+                        TextSpan(
+                          text: 'APP',
+                          style: TextStyle(color: WebotAppTheme.primaryGreen),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 2),
                   const Text(
-                    'FreshMart',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF0F172A)),
+                    'POS SYSTEM',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 8,
+                      letterSpacing: 1.0,
+                      color: WebotAppTheme.slate500,
+                    ),
                   ),
                 ],
               ),
@@ -136,6 +192,11 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
                 icon: Icon(Icons.dashboard_outlined),
                 selectedIcon: Icon(Icons.dashboard),
                 label: Text('Dashboard'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.receipt_long_outlined),
+                selectedIcon: Icon(Icons.receipt_long_rounded),
+                label: Text('Sales'),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.inventory_2_outlined),

@@ -78,9 +78,9 @@ void main() {
       expect(find.text('Average Bill Value'), findsOneWidget);
 
       // Payment Breakdown: UPI (₹1250.00), Cash (₹750.00)
-      expect(find.text('UPI QR'), findsOneWidget);
+      expect(find.text('UPI QR'), findsWidgets);
       expect(find.text('₹1250.00'), findsWidgets);
-      expect(find.text('CASH'), findsOneWidget);
+      expect(find.text('CASH'), findsWidgets);
       expect(find.text('₹750.00'), findsWidgets);
 
       // Cashier breakdown

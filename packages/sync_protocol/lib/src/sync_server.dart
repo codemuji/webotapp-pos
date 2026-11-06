@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:database/database.dart';
@@ -14,6 +15,7 @@ class SyncServer {
   final AppDatabase database;
   final String storeName;
   final Uuid _uuid = const Uuid();
+  final StreamController<bool> _statusController = StreamController<bool>.broadcast();
 
   HttpServer? _server;
   String? _activePairingSecret;
@@ -25,18 +27,25 @@ class SyncServer {
 
   bool get isRunning => _server != null;
   int get port => _server?.port ?? 0;
+  Stream<bool> get statusStream => _statusController.stream;
 
-  /// Generates a fresh ephemeral pairing secret and QR code payload.
+  /// Generates a stable pairing secret and QR code payload.
+  /// Reuses existing active pairing secret unless rotated.
   PairingQrPayload generatePairingQrPayload({required String host}) {
-    final secret = _uuid.v4().substring(0, 8);
-    _activePairingSecret = secret;
+    _activePairingSecret ??= _uuid.v4().substring(0, 8);
 
     return PairingQrPayload(
       host: host,
       port: port,
-      pairingSecret: secret,
+      pairingSecret: _activePairingSecret!,
       storeName: storeName,
     );
+  }
+
+  /// Explicitly regenerates a fresh pairing secret.
+  PairingQrPayload rotatePairingSecret({required String host}) {
+    _activePairingSecret = _uuid.v4().substring(0, 8);
+    return generatePairingQrPayload(host: host);
   }
 
   /// Starts the embedded Shelf server on the given host and port.
@@ -120,10 +129,18 @@ class SyncServer {
                     'id': p.id,
                     'name': p.name,
                     'barcode': p.barcode,
+                    'secondaryBarcode': p.secondaryBarcode,
                     'sku': p.sku,
                     'categoryId': p.categoryId,
                     'sellingPrice': p.sellingPrice,
+                    'purchasePrice': p.purchasePrice,
+                    'stockQuantity': p.stockQuantity,
                     'unit': p.unit,
+                    'parentProductId': p.parentProductId,
+                    'variantName': p.variantName,
+                    'taxRate': p.taxRate,
+                    'hsnCode': p.hsnCode,
+                    'minStockAlert': p.minStockAlert,
                   })
               .toList(),
           'categories': categories
@@ -131,6 +148,8 @@ class SyncServer {
                     'id': c.id,
                     'name': c.name,
                     'description': c.description,
+                    'defaultTaxRate': c.defaultTaxRate,
+                    'defaultHsnCode': c.defaultHsnCode,
                   })
               .toList(),
         }),
@@ -229,7 +248,8 @@ class SyncServer {
 
     final handler = const Pipeline().addMiddleware(logRequests()).addHandler(router.call);
 
-    _server = await shelf_io.serve(handler, host, port);
+    _server = await shelf_io.serve(handler, host, port, shared: true);
+    _statusController.add(true);
   }
 
   /// Stops the running Shelf server.
@@ -237,5 +257,10 @@ class SyncServer {
     await _server?.close(force: true);
     _server = null;
     _activePairingSecret = null;
+    _statusController.add(false);
+  }
+
+  void dispose() {
+    _statusController.close();
   }
 }

@@ -38,8 +38,37 @@ class $CategoriesTable extends Categories
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _defaultTaxRateMeta = const VerificationMeta(
+    'defaultTaxRate',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, name, description];
+  late final GeneratedColumn<double> defaultTaxRate = GeneratedColumn<double>(
+    'default_tax_rate',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _defaultHsnCodeMeta = const VerificationMeta(
+    'defaultHsnCode',
+  );
+  @override
+  late final GeneratedColumn<String> defaultHsnCode = GeneratedColumn<String>(
+    'default_hsn_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    description,
+    defaultTaxRate,
+    defaultHsnCode,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -74,6 +103,24 @@ class $CategoriesTable extends Categories
         ),
       );
     }
+    if (data.containsKey('default_tax_rate')) {
+      context.handle(
+        _defaultTaxRateMeta,
+        defaultTaxRate.isAcceptableOrUnknown(
+          data['default_tax_rate']!,
+          _defaultTaxRateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('default_hsn_code')) {
+      context.handle(
+        _defaultHsnCodeMeta,
+        defaultHsnCode.isAcceptableOrUnknown(
+          data['default_hsn_code']!,
+          _defaultHsnCodeMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -95,6 +142,14 @@ class $CategoriesTable extends Categories
         DriftSqlType.string,
         data['${effectivePrefix}description'],
       ),
+      defaultTaxRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}default_tax_rate'],
+      )!,
+      defaultHsnCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}default_hsn_code'],
+      ),
     );
   }
 
@@ -108,7 +163,15 @@ class Category extends DataClass implements Insertable<Category> {
   final String id;
   final String name;
   final String? description;
-  const Category({required this.id, required this.name, this.description});
+  final double defaultTaxRate;
+  final String? defaultHsnCode;
+  const Category({
+    required this.id,
+    required this.name,
+    this.description,
+    required this.defaultTaxRate,
+    this.defaultHsnCode,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -116,6 +179,10 @@ class Category extends DataClass implements Insertable<Category> {
     map['name'] = Variable<String>(name);
     if (!nullToAbsent || description != null) {
       map['description'] = Variable<String>(description);
+    }
+    map['default_tax_rate'] = Variable<double>(defaultTaxRate);
+    if (!nullToAbsent || defaultHsnCode != null) {
+      map['default_hsn_code'] = Variable<String>(defaultHsnCode);
     }
     return map;
   }
@@ -127,6 +194,10 @@ class Category extends DataClass implements Insertable<Category> {
       description: description == null && nullToAbsent
           ? const Value.absent()
           : Value(description),
+      defaultTaxRate: Value(defaultTaxRate),
+      defaultHsnCode: defaultHsnCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(defaultHsnCode),
     );
   }
 
@@ -139,6 +210,8 @@ class Category extends DataClass implements Insertable<Category> {
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String?>(json['description']),
+      defaultTaxRate: serializer.fromJson<double>(json['defaultTaxRate']),
+      defaultHsnCode: serializer.fromJson<String?>(json['defaultHsnCode']),
     );
   }
   @override
@@ -148,6 +221,8 @@ class Category extends DataClass implements Insertable<Category> {
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
       'description': serializer.toJson<String?>(description),
+      'defaultTaxRate': serializer.toJson<double>(defaultTaxRate),
+      'defaultHsnCode': serializer.toJson<String?>(defaultHsnCode),
     };
   }
 
@@ -155,10 +230,16 @@ class Category extends DataClass implements Insertable<Category> {
     String? id,
     String? name,
     Value<String?> description = const Value.absent(),
+    double? defaultTaxRate,
+    Value<String?> defaultHsnCode = const Value.absent(),
   }) => Category(
     id: id ?? this.id,
     name: name ?? this.name,
     description: description.present ? description.value : this.description,
+    defaultTaxRate: defaultTaxRate ?? this.defaultTaxRate,
+    defaultHsnCode: defaultHsnCode.present
+        ? defaultHsnCode.value
+        : this.defaultHsnCode,
   );
   Category copyWithCompanion(CategoriesCompanion data) {
     return Category(
@@ -167,6 +248,12 @@ class Category extends DataClass implements Insertable<Category> {
       description: data.description.present
           ? data.description.value
           : this.description,
+      defaultTaxRate: data.defaultTaxRate.present
+          ? data.defaultTaxRate.value
+          : this.defaultTaxRate,
+      defaultHsnCode: data.defaultHsnCode.present
+          ? data.defaultHsnCode.value
+          : this.defaultHsnCode,
     );
   }
 
@@ -175,37 +262,48 @@ class Category extends DataClass implements Insertable<Category> {
     return (StringBuffer('Category(')
           ..write('id: $id, ')
           ..write('name: $name, ')
-          ..write('description: $description')
+          ..write('description: $description, ')
+          ..write('defaultTaxRate: $defaultTaxRate, ')
+          ..write('defaultHsnCode: $defaultHsnCode')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, description);
+  int get hashCode =>
+      Object.hash(id, name, description, defaultTaxRate, defaultHsnCode);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Category &&
           other.id == this.id &&
           other.name == this.name &&
-          other.description == this.description);
+          other.description == this.description &&
+          other.defaultTaxRate == this.defaultTaxRate &&
+          other.defaultHsnCode == this.defaultHsnCode);
 }
 
 class CategoriesCompanion extends UpdateCompanion<Category> {
   final Value<String> id;
   final Value<String> name;
   final Value<String?> description;
+  final Value<double> defaultTaxRate;
+  final Value<String?> defaultHsnCode;
   final Value<int> rowid;
   const CategoriesCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.description = const Value.absent(),
+    this.defaultTaxRate = const Value.absent(),
+    this.defaultHsnCode = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CategoriesCompanion.insert({
     required String id,
     required String name,
     this.description = const Value.absent(),
+    this.defaultTaxRate = const Value.absent(),
+    this.defaultHsnCode = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name);
@@ -213,12 +311,16 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? description,
+    Expression<double>? defaultTaxRate,
+    Expression<String>? defaultHsnCode,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (description != null) 'description': description,
+      if (defaultTaxRate != null) 'default_tax_rate': defaultTaxRate,
+      if (defaultHsnCode != null) 'default_hsn_code': defaultHsnCode,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -227,12 +329,16 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Value<String>? id,
     Value<String>? name,
     Value<String?>? description,
+    Value<double>? defaultTaxRate,
+    Value<String?>? defaultHsnCode,
     Value<int>? rowid,
   }) {
     return CategoriesCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
+      defaultTaxRate: defaultTaxRate ?? this.defaultTaxRate,
+      defaultHsnCode: defaultHsnCode ?? this.defaultHsnCode,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -249,6 +355,12 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     if (description.present) {
       map['description'] = Variable<String>(description.value);
     }
+    if (defaultTaxRate.present) {
+      map['default_tax_rate'] = Variable<double>(defaultTaxRate.value);
+    }
+    if (defaultHsnCode.present) {
+      map['default_hsn_code'] = Variable<String>(defaultHsnCode.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -261,6 +373,8 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
+          ..write('defaultTaxRate: $defaultTaxRate, ')
+          ..write('defaultHsnCode: $defaultHsnCode, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -300,7 +414,17 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
     true,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _secondaryBarcodeMeta = const VerificationMeta(
+    'secondaryBarcode',
+  );
+  @override
+  late final GeneratedColumn<String> secondaryBarcode = GeneratedColumn<String>(
+    'secondary_barcode',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _skuMeta = const VerificationMeta('sku');
   @override
@@ -367,6 +491,63 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
     requiredDuringInsert: false,
     defaultValue: const Constant('pcs'),
   );
+  static const VerificationMeta _parentProductIdMeta = const VerificationMeta(
+    'parentProductId',
+  );
+  @override
+  late final GeneratedColumn<String> parentProductId = GeneratedColumn<String>(
+    'parent_product_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _variantNameMeta = const VerificationMeta(
+    'variantName',
+  );
+  @override
+  late final GeneratedColumn<String> variantName = GeneratedColumn<String>(
+    'variant_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _taxRateMeta = const VerificationMeta(
+    'taxRate',
+  );
+  @override
+  late final GeneratedColumn<double> taxRate = GeneratedColumn<double>(
+    'tax_rate',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _hsnCodeMeta = const VerificationMeta(
+    'hsnCode',
+  );
+  @override
+  late final GeneratedColumn<String> hsnCode = GeneratedColumn<String>(
+    'hsn_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _minStockAlertMeta = const VerificationMeta(
+    'minStockAlert',
+  );
+  @override
+  late final GeneratedColumn<double> minStockAlert = GeneratedColumn<double>(
+    'min_stock_alert',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(5.0),
+  );
   static const VerificationMeta _isActiveMeta = const VerificationMeta(
     'isActive',
   );
@@ -398,12 +579,18 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
     id,
     name,
     barcode,
+    secondaryBarcode,
     sku,
     categoryId,
     sellingPrice,
     purchasePrice,
     stockQuantity,
     unit,
+    parentProductId,
+    variantName,
+    taxRate,
+    hsnCode,
+    minStockAlert,
     isActive,
     updatedAt,
   ];
@@ -436,6 +623,15 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
       context.handle(
         _barcodeMeta,
         barcode.isAcceptableOrUnknown(data['barcode']!, _barcodeMeta),
+      );
+    }
+    if (data.containsKey('secondary_barcode')) {
+      context.handle(
+        _secondaryBarcodeMeta,
+        secondaryBarcode.isAcceptableOrUnknown(
+          data['secondary_barcode']!,
+          _secondaryBarcodeMeta,
+        ),
       );
     }
     if (data.containsKey('sku')) {
@@ -485,6 +681,45 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
         unit.isAcceptableOrUnknown(data['unit']!, _unitMeta),
       );
     }
+    if (data.containsKey('parent_product_id')) {
+      context.handle(
+        _parentProductIdMeta,
+        parentProductId.isAcceptableOrUnknown(
+          data['parent_product_id']!,
+          _parentProductIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('variant_name')) {
+      context.handle(
+        _variantNameMeta,
+        variantName.isAcceptableOrUnknown(
+          data['variant_name']!,
+          _variantNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tax_rate')) {
+      context.handle(
+        _taxRateMeta,
+        taxRate.isAcceptableOrUnknown(data['tax_rate']!, _taxRateMeta),
+      );
+    }
+    if (data.containsKey('hsn_code')) {
+      context.handle(
+        _hsnCodeMeta,
+        hsnCode.isAcceptableOrUnknown(data['hsn_code']!, _hsnCodeMeta),
+      );
+    }
+    if (data.containsKey('min_stock_alert')) {
+      context.handle(
+        _minStockAlertMeta,
+        minStockAlert.isAcceptableOrUnknown(
+          data['min_stock_alert']!,
+          _minStockAlertMeta,
+        ),
+      );
+    }
     if (data.containsKey('is_active')) {
       context.handle(
         _isActiveMeta,
@@ -520,6 +755,10 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
         DriftSqlType.string,
         data['${effectivePrefix}barcode'],
       ),
+      secondaryBarcode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}secondary_barcode'],
+      ),
       sku: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sku'],
@@ -544,6 +783,26 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
         DriftSqlType.string,
         data['${effectivePrefix}unit'],
       )!,
+      parentProductId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_product_id'],
+      ),
+      variantName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}variant_name'],
+      ),
+      taxRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}tax_rate'],
+      )!,
+      hsnCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}hsn_code'],
+      ),
+      minStockAlert: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}min_stock_alert'],
+      )!,
       isActive: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
@@ -565,24 +824,36 @@ class Product extends DataClass implements Insertable<Product> {
   final String id;
   final String name;
   final String? barcode;
+  final String? secondaryBarcode;
   final String? sku;
   final String? categoryId;
   final double sellingPrice;
   final double? purchasePrice;
   final double stockQuantity;
   final String unit;
+  final String? parentProductId;
+  final String? variantName;
+  final double taxRate;
+  final String? hsnCode;
+  final double minStockAlert;
   final bool isActive;
   final DateTime updatedAt;
   const Product({
     required this.id,
     required this.name,
     this.barcode,
+    this.secondaryBarcode,
     this.sku,
     this.categoryId,
     required this.sellingPrice,
     this.purchasePrice,
     required this.stockQuantity,
     required this.unit,
+    this.parentProductId,
+    this.variantName,
+    required this.taxRate,
+    this.hsnCode,
+    required this.minStockAlert,
     required this.isActive,
     required this.updatedAt,
   });
@@ -593,6 +864,9 @@ class Product extends DataClass implements Insertable<Product> {
     map['name'] = Variable<String>(name);
     if (!nullToAbsent || barcode != null) {
       map['barcode'] = Variable<String>(barcode);
+    }
+    if (!nullToAbsent || secondaryBarcode != null) {
+      map['secondary_barcode'] = Variable<String>(secondaryBarcode);
     }
     if (!nullToAbsent || sku != null) {
       map['sku'] = Variable<String>(sku);
@@ -606,6 +880,17 @@ class Product extends DataClass implements Insertable<Product> {
     }
     map['stock_quantity'] = Variable<double>(stockQuantity);
     map['unit'] = Variable<String>(unit);
+    if (!nullToAbsent || parentProductId != null) {
+      map['parent_product_id'] = Variable<String>(parentProductId);
+    }
+    if (!nullToAbsent || variantName != null) {
+      map['variant_name'] = Variable<String>(variantName);
+    }
+    map['tax_rate'] = Variable<double>(taxRate);
+    if (!nullToAbsent || hsnCode != null) {
+      map['hsn_code'] = Variable<String>(hsnCode);
+    }
+    map['min_stock_alert'] = Variable<double>(minStockAlert);
     map['is_active'] = Variable<bool>(isActive);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -618,6 +903,9 @@ class Product extends DataClass implements Insertable<Product> {
       barcode: barcode == null && nullToAbsent
           ? const Value.absent()
           : Value(barcode),
+      secondaryBarcode: secondaryBarcode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(secondaryBarcode),
       sku: sku == null && nullToAbsent ? const Value.absent() : Value(sku),
       categoryId: categoryId == null && nullToAbsent
           ? const Value.absent()
@@ -628,6 +916,17 @@ class Product extends DataClass implements Insertable<Product> {
           : Value(purchasePrice),
       stockQuantity: Value(stockQuantity),
       unit: Value(unit),
+      parentProductId: parentProductId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentProductId),
+      variantName: variantName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(variantName),
+      taxRate: Value(taxRate),
+      hsnCode: hsnCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(hsnCode),
+      minStockAlert: Value(minStockAlert),
       isActive: Value(isActive),
       updatedAt: Value(updatedAt),
     );
@@ -642,12 +941,18 @@ class Product extends DataClass implements Insertable<Product> {
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       barcode: serializer.fromJson<String?>(json['barcode']),
+      secondaryBarcode: serializer.fromJson<String?>(json['secondaryBarcode']),
       sku: serializer.fromJson<String?>(json['sku']),
       categoryId: serializer.fromJson<String?>(json['categoryId']),
       sellingPrice: serializer.fromJson<double>(json['sellingPrice']),
       purchasePrice: serializer.fromJson<double?>(json['purchasePrice']),
       stockQuantity: serializer.fromJson<double>(json['stockQuantity']),
       unit: serializer.fromJson<String>(json['unit']),
+      parentProductId: serializer.fromJson<String?>(json['parentProductId']),
+      variantName: serializer.fromJson<String?>(json['variantName']),
+      taxRate: serializer.fromJson<double>(json['taxRate']),
+      hsnCode: serializer.fromJson<String?>(json['hsnCode']),
+      minStockAlert: serializer.fromJson<double>(json['minStockAlert']),
       isActive: serializer.fromJson<bool>(json['isActive']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -659,12 +964,18 @@ class Product extends DataClass implements Insertable<Product> {
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
       'barcode': serializer.toJson<String?>(barcode),
+      'secondaryBarcode': serializer.toJson<String?>(secondaryBarcode),
       'sku': serializer.toJson<String?>(sku),
       'categoryId': serializer.toJson<String?>(categoryId),
       'sellingPrice': serializer.toJson<double>(sellingPrice),
       'purchasePrice': serializer.toJson<double?>(purchasePrice),
       'stockQuantity': serializer.toJson<double>(stockQuantity),
       'unit': serializer.toJson<String>(unit),
+      'parentProductId': serializer.toJson<String?>(parentProductId),
+      'variantName': serializer.toJson<String?>(variantName),
+      'taxRate': serializer.toJson<double>(taxRate),
+      'hsnCode': serializer.toJson<String?>(hsnCode),
+      'minStockAlert': serializer.toJson<double>(minStockAlert),
       'isActive': serializer.toJson<bool>(isActive),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -674,18 +985,27 @@ class Product extends DataClass implements Insertable<Product> {
     String? id,
     String? name,
     Value<String?> barcode = const Value.absent(),
+    Value<String?> secondaryBarcode = const Value.absent(),
     Value<String?> sku = const Value.absent(),
     Value<String?> categoryId = const Value.absent(),
     double? sellingPrice,
     Value<double?> purchasePrice = const Value.absent(),
     double? stockQuantity,
     String? unit,
+    Value<String?> parentProductId = const Value.absent(),
+    Value<String?> variantName = const Value.absent(),
+    double? taxRate,
+    Value<String?> hsnCode = const Value.absent(),
+    double? minStockAlert,
     bool? isActive,
     DateTime? updatedAt,
   }) => Product(
     id: id ?? this.id,
     name: name ?? this.name,
     barcode: barcode.present ? barcode.value : this.barcode,
+    secondaryBarcode: secondaryBarcode.present
+        ? secondaryBarcode.value
+        : this.secondaryBarcode,
     sku: sku.present ? sku.value : this.sku,
     categoryId: categoryId.present ? categoryId.value : this.categoryId,
     sellingPrice: sellingPrice ?? this.sellingPrice,
@@ -694,6 +1014,13 @@ class Product extends DataClass implements Insertable<Product> {
         : this.purchasePrice,
     stockQuantity: stockQuantity ?? this.stockQuantity,
     unit: unit ?? this.unit,
+    parentProductId: parentProductId.present
+        ? parentProductId.value
+        : this.parentProductId,
+    variantName: variantName.present ? variantName.value : this.variantName,
+    taxRate: taxRate ?? this.taxRate,
+    hsnCode: hsnCode.present ? hsnCode.value : this.hsnCode,
+    minStockAlert: minStockAlert ?? this.minStockAlert,
     isActive: isActive ?? this.isActive,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -702,6 +1029,9 @@ class Product extends DataClass implements Insertable<Product> {
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       barcode: data.barcode.present ? data.barcode.value : this.barcode,
+      secondaryBarcode: data.secondaryBarcode.present
+          ? data.secondaryBarcode.value
+          : this.secondaryBarcode,
       sku: data.sku.present ? data.sku.value : this.sku,
       categoryId: data.categoryId.present
           ? data.categoryId.value
@@ -716,6 +1046,17 @@ class Product extends DataClass implements Insertable<Product> {
           ? data.stockQuantity.value
           : this.stockQuantity,
       unit: data.unit.present ? data.unit.value : this.unit,
+      parentProductId: data.parentProductId.present
+          ? data.parentProductId.value
+          : this.parentProductId,
+      variantName: data.variantName.present
+          ? data.variantName.value
+          : this.variantName,
+      taxRate: data.taxRate.present ? data.taxRate.value : this.taxRate,
+      hsnCode: data.hsnCode.present ? data.hsnCode.value : this.hsnCode,
+      minStockAlert: data.minStockAlert.present
+          ? data.minStockAlert.value
+          : this.minStockAlert,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -727,12 +1068,18 @@ class Product extends DataClass implements Insertable<Product> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('barcode: $barcode, ')
+          ..write('secondaryBarcode: $secondaryBarcode, ')
           ..write('sku: $sku, ')
           ..write('categoryId: $categoryId, ')
           ..write('sellingPrice: $sellingPrice, ')
           ..write('purchasePrice: $purchasePrice, ')
           ..write('stockQuantity: $stockQuantity, ')
           ..write('unit: $unit, ')
+          ..write('parentProductId: $parentProductId, ')
+          ..write('variantName: $variantName, ')
+          ..write('taxRate: $taxRate, ')
+          ..write('hsnCode: $hsnCode, ')
+          ..write('minStockAlert: $minStockAlert, ')
           ..write('isActive: $isActive, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -744,12 +1091,18 @@ class Product extends DataClass implements Insertable<Product> {
     id,
     name,
     barcode,
+    secondaryBarcode,
     sku,
     categoryId,
     sellingPrice,
     purchasePrice,
     stockQuantity,
     unit,
+    parentProductId,
+    variantName,
+    taxRate,
+    hsnCode,
+    minStockAlert,
     isActive,
     updatedAt,
   );
@@ -760,12 +1113,18 @@ class Product extends DataClass implements Insertable<Product> {
           other.id == this.id &&
           other.name == this.name &&
           other.barcode == this.barcode &&
+          other.secondaryBarcode == this.secondaryBarcode &&
           other.sku == this.sku &&
           other.categoryId == this.categoryId &&
           other.sellingPrice == this.sellingPrice &&
           other.purchasePrice == this.purchasePrice &&
           other.stockQuantity == this.stockQuantity &&
           other.unit == this.unit &&
+          other.parentProductId == this.parentProductId &&
+          other.variantName == this.variantName &&
+          other.taxRate == this.taxRate &&
+          other.hsnCode == this.hsnCode &&
+          other.minStockAlert == this.minStockAlert &&
           other.isActive == this.isActive &&
           other.updatedAt == this.updatedAt);
 }
@@ -774,12 +1133,18 @@ class ProductsCompanion extends UpdateCompanion<Product> {
   final Value<String> id;
   final Value<String> name;
   final Value<String?> barcode;
+  final Value<String?> secondaryBarcode;
   final Value<String?> sku;
   final Value<String?> categoryId;
   final Value<double> sellingPrice;
   final Value<double?> purchasePrice;
   final Value<double> stockQuantity;
   final Value<String> unit;
+  final Value<String?> parentProductId;
+  final Value<String?> variantName;
+  final Value<double> taxRate;
+  final Value<String?> hsnCode;
+  final Value<double> minStockAlert;
   final Value<bool> isActive;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -787,12 +1152,18 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.barcode = const Value.absent(),
+    this.secondaryBarcode = const Value.absent(),
     this.sku = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.sellingPrice = const Value.absent(),
     this.purchasePrice = const Value.absent(),
     this.stockQuantity = const Value.absent(),
     this.unit = const Value.absent(),
+    this.parentProductId = const Value.absent(),
+    this.variantName = const Value.absent(),
+    this.taxRate = const Value.absent(),
+    this.hsnCode = const Value.absent(),
+    this.minStockAlert = const Value.absent(),
     this.isActive = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -801,12 +1172,18 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     required String id,
     required String name,
     this.barcode = const Value.absent(),
+    this.secondaryBarcode = const Value.absent(),
     this.sku = const Value.absent(),
     this.categoryId = const Value.absent(),
     required double sellingPrice,
     this.purchasePrice = const Value.absent(),
     this.stockQuantity = const Value.absent(),
     this.unit = const Value.absent(),
+    this.parentProductId = const Value.absent(),
+    this.variantName = const Value.absent(),
+    this.taxRate = const Value.absent(),
+    this.hsnCode = const Value.absent(),
+    this.minStockAlert = const Value.absent(),
     this.isActive = const Value.absent(),
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -818,12 +1195,18 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? barcode,
+    Expression<String>? secondaryBarcode,
     Expression<String>? sku,
     Expression<String>? categoryId,
     Expression<double>? sellingPrice,
     Expression<double>? purchasePrice,
     Expression<double>? stockQuantity,
     Expression<String>? unit,
+    Expression<String>? parentProductId,
+    Expression<String>? variantName,
+    Expression<double>? taxRate,
+    Expression<String>? hsnCode,
+    Expression<double>? minStockAlert,
     Expression<bool>? isActive,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -832,12 +1215,18 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (barcode != null) 'barcode': barcode,
+      if (secondaryBarcode != null) 'secondary_barcode': secondaryBarcode,
       if (sku != null) 'sku': sku,
       if (categoryId != null) 'category_id': categoryId,
       if (sellingPrice != null) 'selling_price': sellingPrice,
       if (purchasePrice != null) 'purchase_price': purchasePrice,
       if (stockQuantity != null) 'stock_quantity': stockQuantity,
       if (unit != null) 'unit': unit,
+      if (parentProductId != null) 'parent_product_id': parentProductId,
+      if (variantName != null) 'variant_name': variantName,
+      if (taxRate != null) 'tax_rate': taxRate,
+      if (hsnCode != null) 'hsn_code': hsnCode,
+      if (minStockAlert != null) 'min_stock_alert': minStockAlert,
       if (isActive != null) 'is_active': isActive,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -848,12 +1237,18 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     Value<String>? id,
     Value<String>? name,
     Value<String?>? barcode,
+    Value<String?>? secondaryBarcode,
     Value<String?>? sku,
     Value<String?>? categoryId,
     Value<double>? sellingPrice,
     Value<double?>? purchasePrice,
     Value<double>? stockQuantity,
     Value<String>? unit,
+    Value<String?>? parentProductId,
+    Value<String?>? variantName,
+    Value<double>? taxRate,
+    Value<String?>? hsnCode,
+    Value<double>? minStockAlert,
     Value<bool>? isActive,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -862,12 +1257,18 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       id: id ?? this.id,
       name: name ?? this.name,
       barcode: barcode ?? this.barcode,
+      secondaryBarcode: secondaryBarcode ?? this.secondaryBarcode,
       sku: sku ?? this.sku,
       categoryId: categoryId ?? this.categoryId,
       sellingPrice: sellingPrice ?? this.sellingPrice,
       purchasePrice: purchasePrice ?? this.purchasePrice,
       stockQuantity: stockQuantity ?? this.stockQuantity,
       unit: unit ?? this.unit,
+      parentProductId: parentProductId ?? this.parentProductId,
+      variantName: variantName ?? this.variantName,
+      taxRate: taxRate ?? this.taxRate,
+      hsnCode: hsnCode ?? this.hsnCode,
+      minStockAlert: minStockAlert ?? this.minStockAlert,
       isActive: isActive ?? this.isActive,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -885,6 +1286,9 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     }
     if (barcode.present) {
       map['barcode'] = Variable<String>(barcode.value);
+    }
+    if (secondaryBarcode.present) {
+      map['secondary_barcode'] = Variable<String>(secondaryBarcode.value);
     }
     if (sku.present) {
       map['sku'] = Variable<String>(sku.value);
@@ -904,6 +1308,21 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     if (unit.present) {
       map['unit'] = Variable<String>(unit.value);
     }
+    if (parentProductId.present) {
+      map['parent_product_id'] = Variable<String>(parentProductId.value);
+    }
+    if (variantName.present) {
+      map['variant_name'] = Variable<String>(variantName.value);
+    }
+    if (taxRate.present) {
+      map['tax_rate'] = Variable<double>(taxRate.value);
+    }
+    if (hsnCode.present) {
+      map['hsn_code'] = Variable<String>(hsnCode.value);
+    }
+    if (minStockAlert.present) {
+      map['min_stock_alert'] = Variable<double>(minStockAlert.value);
+    }
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
@@ -922,12 +1341,18 @@ class ProductsCompanion extends UpdateCompanion<Product> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('barcode: $barcode, ')
+          ..write('secondaryBarcode: $secondaryBarcode, ')
           ..write('sku: $sku, ')
           ..write('categoryId: $categoryId, ')
           ..write('sellingPrice: $sellingPrice, ')
           ..write('purchasePrice: $purchasePrice, ')
           ..write('stockQuantity: $stockQuantity, ')
           ..write('unit: $unit, ')
+          ..write('parentProductId: $parentProductId, ')
+          ..write('variantName: $variantName, ')
+          ..write('taxRate: $taxRate, ')
+          ..write('hsnCode: $hsnCode, ')
+          ..write('minStockAlert: $minStockAlert, ')
           ..write('isActive: $isActive, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -4074,6 +4499,8 @@ typedef $$CategoriesTableCreateCompanionBuilder =
       required String id,
       required String name,
       Value<String?> description,
+      Value<double> defaultTaxRate,
+      Value<String?> defaultHsnCode,
       Value<int> rowid,
     });
 typedef $$CategoriesTableUpdateCompanionBuilder =
@@ -4081,6 +4508,8 @@ typedef $$CategoriesTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> name,
       Value<String?> description,
+      Value<double> defaultTaxRate,
+      Value<String?> defaultHsnCode,
       Value<int> rowid,
     });
 
@@ -4129,6 +4558,16 @@ class $$CategoriesTableFilterComposer
 
   ColumnFilters<String> get description => $composableBuilder(
     column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get defaultTaxRate => $composableBuilder(
+    column: $table.defaultTaxRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get defaultHsnCode => $composableBuilder(
+    column: $table.defaultHsnCode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4181,6 +4620,16 @@ class $$CategoriesTableOrderingComposer
     column: $table.description,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get defaultTaxRate => $composableBuilder(
+    column: $table.defaultTaxRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get defaultHsnCode => $composableBuilder(
+    column: $table.defaultHsnCode,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CategoriesTableAnnotationComposer
@@ -4200,6 +4649,16 @@ class $$CategoriesTableAnnotationComposer
 
   GeneratedColumn<String> get description => $composableBuilder(
     column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get defaultTaxRate => $composableBuilder(
+    column: $table.defaultTaxRate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get defaultHsnCode => $composableBuilder(
+    column: $table.defaultHsnCode,
     builder: (column) => column,
   );
 
@@ -4260,11 +4719,15 @@ class $$CategoriesTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String?> description = const Value.absent(),
+                Value<double> defaultTaxRate = const Value.absent(),
+                Value<String?> defaultHsnCode = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CategoriesCompanion(
                 id: id,
                 name: name,
                 description: description,
+                defaultTaxRate: defaultTaxRate,
+                defaultHsnCode: defaultHsnCode,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -4272,11 +4735,15 @@ class $$CategoriesTableTableManager
                 required String id,
                 required String name,
                 Value<String?> description = const Value.absent(),
+                Value<double> defaultTaxRate = const Value.absent(),
+                Value<String?> defaultHsnCode = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CategoriesCompanion.insert(
                 id: id,
                 name: name,
                 description: description,
+                defaultTaxRate: defaultTaxRate,
+                defaultHsnCode: defaultHsnCode,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -4340,12 +4807,18 @@ typedef $$ProductsTableCreateCompanionBuilder =
       required String id,
       required String name,
       Value<String?> barcode,
+      Value<String?> secondaryBarcode,
       Value<String?> sku,
       Value<String?> categoryId,
       required double sellingPrice,
       Value<double?> purchasePrice,
       Value<double> stockQuantity,
       Value<String> unit,
+      Value<String?> parentProductId,
+      Value<String?> variantName,
+      Value<double> taxRate,
+      Value<String?> hsnCode,
+      Value<double> minStockAlert,
       Value<bool> isActive,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -4355,12 +4828,18 @@ typedef $$ProductsTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> name,
       Value<String?> barcode,
+      Value<String?> secondaryBarcode,
       Value<String?> sku,
       Value<String?> categoryId,
       Value<double> sellingPrice,
       Value<double?> purchasePrice,
       Value<double> stockQuantity,
       Value<String> unit,
+      Value<String?> parentProductId,
+      Value<String?> variantName,
+      Value<double> taxRate,
+      Value<String?> hsnCode,
+      Value<double> minStockAlert,
       Value<bool> isActive,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -4456,6 +4935,11 @@ class $$ProductsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get secondaryBarcode => $composableBuilder(
+    column: $table.secondaryBarcode,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get sku => $composableBuilder(
     column: $table.sku,
     builder: (column) => ColumnFilters(column),
@@ -4478,6 +4962,31 @@ class $$ProductsTableFilterComposer
 
   ColumnFilters<String> get unit => $composableBuilder(
     column: $table.unit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get parentProductId => $composableBuilder(
+    column: $table.parentProductId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get variantName => $composableBuilder(
+    column: $table.variantName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get taxRate => $composableBuilder(
+    column: $table.taxRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get hsnCode => $composableBuilder(
+    column: $table.hsnCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get minStockAlert => $composableBuilder(
+    column: $table.minStockAlert,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4589,6 +5098,11 @@ class $$ProductsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get secondaryBarcode => $composableBuilder(
+    column: $table.secondaryBarcode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get sku => $composableBuilder(
     column: $table.sku,
     builder: (column) => ColumnOrderings(column),
@@ -4611,6 +5125,31 @@ class $$ProductsTableOrderingComposer
 
   ColumnOrderings<String> get unit => $composableBuilder(
     column: $table.unit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get parentProductId => $composableBuilder(
+    column: $table.parentProductId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get variantName => $composableBuilder(
+    column: $table.variantName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get taxRate => $composableBuilder(
+    column: $table.taxRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get hsnCode => $composableBuilder(
+    column: $table.hsnCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get minStockAlert => $composableBuilder(
+    column: $table.minStockAlert,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -4666,6 +5205,11 @@ class $$ProductsTableAnnotationComposer
   GeneratedColumn<String> get barcode =>
       $composableBuilder(column: $table.barcode, builder: (column) => column);
 
+  GeneratedColumn<String> get secondaryBarcode => $composableBuilder(
+    column: $table.secondaryBarcode,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get sku =>
       $composableBuilder(column: $table.sku, builder: (column) => column);
 
@@ -4686,6 +5230,27 @@ class $$ProductsTableAnnotationComposer
 
   GeneratedColumn<String> get unit =>
       $composableBuilder(column: $table.unit, builder: (column) => column);
+
+  GeneratedColumn<String> get parentProductId => $composableBuilder(
+    column: $table.parentProductId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get variantName => $composableBuilder(
+    column: $table.variantName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get taxRate =>
+      $composableBuilder(column: $table.taxRate, builder: (column) => column);
+
+  GeneratedColumn<String> get hsnCode =>
+      $composableBuilder(column: $table.hsnCode, builder: (column) => column);
+
+  GeneratedColumn<double> get minStockAlert => $composableBuilder(
+    column: $table.minStockAlert,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
@@ -4803,12 +5368,18 @@ class $$ProductsTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String?> barcode = const Value.absent(),
+                Value<String?> secondaryBarcode = const Value.absent(),
                 Value<String?> sku = const Value.absent(),
                 Value<String?> categoryId = const Value.absent(),
                 Value<double> sellingPrice = const Value.absent(),
                 Value<double?> purchasePrice = const Value.absent(),
                 Value<double> stockQuantity = const Value.absent(),
                 Value<String> unit = const Value.absent(),
+                Value<String?> parentProductId = const Value.absent(),
+                Value<String?> variantName = const Value.absent(),
+                Value<double> taxRate = const Value.absent(),
+                Value<String?> hsnCode = const Value.absent(),
+                Value<double> minStockAlert = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -4816,12 +5387,18 @@ class $$ProductsTableTableManager
                 id: id,
                 name: name,
                 barcode: barcode,
+                secondaryBarcode: secondaryBarcode,
                 sku: sku,
                 categoryId: categoryId,
                 sellingPrice: sellingPrice,
                 purchasePrice: purchasePrice,
                 stockQuantity: stockQuantity,
                 unit: unit,
+                parentProductId: parentProductId,
+                variantName: variantName,
+                taxRate: taxRate,
+                hsnCode: hsnCode,
+                minStockAlert: minStockAlert,
                 isActive: isActive,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -4831,12 +5408,18 @@ class $$ProductsTableTableManager
                 required String id,
                 required String name,
                 Value<String?> barcode = const Value.absent(),
+                Value<String?> secondaryBarcode = const Value.absent(),
                 Value<String?> sku = const Value.absent(),
                 Value<String?> categoryId = const Value.absent(),
                 required double sellingPrice,
                 Value<double?> purchasePrice = const Value.absent(),
                 Value<double> stockQuantity = const Value.absent(),
                 Value<String> unit = const Value.absent(),
+                Value<String?> parentProductId = const Value.absent(),
+                Value<String?> variantName = const Value.absent(),
+                Value<double> taxRate = const Value.absent(),
+                Value<String?> hsnCode = const Value.absent(),
+                Value<double> minStockAlert = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -4844,12 +5427,18 @@ class $$ProductsTableTableManager
                 id: id,
                 name: name,
                 barcode: barcode,
+                secondaryBarcode: secondaryBarcode,
                 sku: sku,
                 categoryId: categoryId,
                 sellingPrice: sellingPrice,
                 purchasePrice: purchasePrice,
                 stockQuantity: stockQuantity,
                 unit: unit,
+                parentProductId: parentProductId,
+                variantName: variantName,
+                taxRate: taxRate,
+                hsnCode: hsnCode,
+                minStockAlert: minStockAlert,
                 isActive: isActive,
                 updatedAt: updatedAt,
                 rowid: rowid,

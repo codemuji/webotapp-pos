@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:sync_protocol/sync_protocol.dart';
 import '../widgets/tactile_button.dart';
@@ -29,6 +30,11 @@ class TerminalPairingScreenState extends State<TerminalPairingScreen> {
   late final MobileScannerController? _scannerController;
   bool _isProcessing = false;
   String? _pairedStoreName;
+  String? _pairedServerUrl;
+  bool _isTestingConnection = false;
+  String? _testConnectionResult;
+  bool _isTestSuccess = false;
+  bool _isCatalogSyncing = false;
 
   @override
   void initState() {
@@ -55,11 +61,33 @@ class TerminalPairingScreenState extends State<TerminalPairingScreen> {
     final paired = await widget.storage.isPaired();
     if (paired) {
       final name = await widget.storage.getStoreName();
+      final url = await widget.storage.getServerUrl();
       if (mounted) {
         setState(() {
           _pairedStoreName = name ?? 'Store Admin Node';
+          _pairedServerUrl = url;
         });
       }
+    }
+  }
+
+  Future<void> _testConnection() async {
+    if (_pairedServerUrl == null) return;
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isTestingConnection = true;
+      _testConnectionResult = null;
+    });
+
+    final isOk = await widget.pairingClient.ping(_pairedServerUrl!);
+    if (mounted) {
+      setState(() {
+        _isTestingConnection = false;
+        _isTestSuccess = isOk;
+        _testConnectionResult = isOk
+            ? 'Server reachable! Connected on $_pairedServerUrl'
+            : 'Cannot reach $_pairedServerUrl. Ensure laptop is on same Wi-Fi and Desktop POS is running.';
+      });
     }
   }
 
@@ -100,16 +128,31 @@ class TerminalPairingScreenState extends State<TerminalPairingScreen> {
 
         setState(() {
           _pairedStoreName = result.storeName;
+          _pairedServerUrl = result.serverUrl;
           _isProcessing = false;
         });
       } else {
         setState(() => _isProcessing = false);
-        _showError('Pairing failed: ${result.errorMessage}');
+        String msg = result.errorMessage ?? 'Pairing rejected';
+        if (msg.contains('TimeoutException')) {
+          msg = 'Connection timed out reaching ${payload.host}:${payload.port}.\n\n'
+              '1. Connect phone to Wi-Fi: Ensure phone is on Wi-Fi (not 5G/mobile data).\n'
+              '2. Same Wi-Fi: Phone and laptop must be on the same router.\n'
+              '3. Windows Firewall: Run allow_firewall_sync_port.bat as Admin on laptop.';
+        }
+        _showError('Pairing failed: $msg');
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessing = false);
-        _showError('Connection error: $e');
+        String msg = e.toString();
+        if (msg.contains('TimeoutException')) {
+          msg = 'Connection timed out reaching ${payload.host}:${payload.port}.\n\n'
+              '1. Connect phone to Wi-Fi: Ensure phone is on Wi-Fi (not 5G/mobile data).\n'
+              '2. Same Wi-Fi: Phone and laptop must be on the same router.\n'
+              '3. Windows Firewall: Run allow_firewall_sync_port.bat as Admin on laptop.';
+        }
+        _showError('Connection error:\n$msg');
       }
     }
   }
@@ -129,90 +172,153 @@ class TerminalPairingScreenState extends State<TerminalPairingScreen> {
     final ipController = TextEditingController(text: '192.168.1.35');
     final portController = TextEditingController(text: '8085');
     final secretController = TextEditingController();
+    bool isTesting = false;
+    String? pingResult;
+    bool isPingSuccess = false;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Manual Terminal Pairing',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Enter the connection details displayed on the Windows Desktop Admin screen:',
-              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: ipController,
-              decoration: const InputDecoration(
-                labelText: 'Desktop Server IP',
-                hintText: 'e.g. 192.168.1.35',
-                border: OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Manual Terminal Pairing',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: portController,
-              decoration: const InputDecoration(
-                labelText: 'Port',
-                hintText: '8085',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 6),
+              const Text(
+                'Enter the connection details displayed on the Windows Desktop Admin screen:',
+                style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
               ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: secretController,
-              decoration: const InputDecoration(
-                labelText: 'Pairing Key / Secret',
-                hintText: 'e.g. ABC123XY',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
-            TactileButton(
-              onPressed: () {
-                final ip = ipController.text.trim();
-                final port = int.tryParse(portController.text.trim()) ?? 8085;
-                final secret = secretController.text.trim();
-                if (ip.isEmpty || secret.isEmpty) {
-                  return;
-                }
-                Navigator.pop(ctx);
-                final payload = PairingQrPayload(
-                  host: ip,
-                  port: port,
-                  pairingSecret: secret,
-                  storeName: 'FreshMart Store',
-                );
-                handleScannedQr(payload.toRawString());
-              },
-              child: Container(
-                height: 50,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.center,
-                child: const Text(
-                  'Connect & Pair',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
+              const SizedBox(height: 16),
+              TextField(
+                controller: ipController,
+                decoration: const InputDecoration(
+                  labelText: 'Desktop Server IP',
+                  hintText: 'e.g. 192.168.1.35',
+                  border: OutlineInputBorder(),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              TextField(
+                controller: portController,
+                decoration: const InputDecoration(
+                  labelText: 'Port',
+                  hintText: '8085',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: secretController,
+                decoration: const InputDecoration(
+                  labelText: 'Pairing Key / Secret',
+                  hintText: 'e.g. ABC123XY',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Ping Test Row
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: isTesting
+                          ? null
+                          : () async {
+                              final ip = ipController.text.trim();
+                              final port = portController.text.trim();
+                              if (ip.isEmpty) return;
+                              setModalState(() {
+                                isTesting = true;
+                                pingResult = null;
+                              });
+                              final targetUrl = 'http://$ip:$port';
+                              final ok = await widget.pairingClient.ping(targetUrl);
+                              setModalState(() {
+                                isTesting = false;
+                                isPingSuccess = ok;
+                                pingResult = ok
+                                    ? 'Success: Desktop reachable on $targetUrl'
+                                    : 'Failed: Cannot reach $targetUrl within timeout';
+                              });
+                            },
+                      icon: isTesting
+                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.wifi_tethering, size: 16),
+                      label: const Text('Test Connection (Ping)'),
+                    ),
+                  ),
+                ],
+              ),
+              if (pingResult != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isPingSuccess ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: isPingSuccess ? const Color(0xFFA7F3D0) : const Color(0xFFFECACA)),
+                  ),
+                  child: Text(
+                    pingResult!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isPingSuccess ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              TactileButton(
+                onPressed: () {
+                  final ip = ipController.text.trim();
+                  final port = int.tryParse(portController.text.trim()) ?? 8085;
+                  final secret = secretController.text.trim();
+                  if (ip.isEmpty) {
+                    _showError('Please enter Desktop IP address');
+                    return;
+                  }
+                  if (secret.isEmpty) {
+                    _showError('Please enter the 8-character pairing key from desktop');
+                    return;
+                  }
+                  Navigator.pop(ctx);
+                  final payload = PairingQrPayload(
+                    host: ip,
+                    port: port,
+                    pairingSecret: secret,
+                    storeName: 'WebotApp Store',
+                  );
+                  handleScannedQr(payload.toRawString());
+                },
+                child: Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Connect & Pair',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -222,6 +328,8 @@ class TerminalPairingScreenState extends State<TerminalPairingScreen> {
     await widget.storage.clear();
     setState(() {
       _pairedStoreName = null;
+      _pairedServerUrl = null;
+      _testConnectionResult = null;
     });
   }
 
@@ -317,10 +425,20 @@ class TerminalPairingScreenState extends State<TerminalPairingScreen> {
                     color: Colors.black54,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
-                    'Scan the QR code displayed on the Windows Desktop Admin dashboard',
-                    style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
-                    textAlign: TextAlign.center,
+                  child: const Column(
+                    children: [
+                      Text(
+                        'Scan the QR code displayed on the Windows Desktop Admin dashboard',
+                        style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        '📶 Phone & laptop must be on the same Wi-Fi (turn off 5G data)',
+                        style: TextStyle(color: Color(0xFF6EE7B7), fontSize: 11, fontWeight: FontWeight.w600),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -431,20 +549,104 @@ class TerminalPairingScreenState extends State<TerminalPairingScreen> {
                 _pairedStoreName ?? '',
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
               ),
-              const SizedBox(height: 36),
+              if (_pairedServerUrl != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: Text(
+                    _pairedServerUrl!,
+                    style: const TextStyle(fontSize: 12, fontFamily: 'monospace', fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                  ),
+                ),
+              ],
+              if (_testConnectionResult != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _isTestSuccess ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: _isTestSuccess ? const Color(0xFFA7F3D0) : const Color(0xFFFECACA)),
+                  ),
+                  child: Text(
+                    _testConnectionResult!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: _isTestSuccess ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
+              // Test Connection Button
+              if (_pairedServerUrl != null) ...[
+                TactileButton(
+                  onPressed: _isTestingConnection ? null : _testConnection,
+                  minHeight: 44,
+                  child: Container(
+                    height: 44,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_isTestingConnection)
+                          const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0F172A)))
+                        else
+                          const Icon(Icons.network_check_rounded, color: Color(0xFF0F172A), size: 18),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Test Server Connection',
+                          style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               if (widget.syncCoordinator != null) ...[
                 TactileButton(
-                  onPressed: () async {
-                    final res = await widget.syncCoordinator!.runSync();
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(res.message),
-                        backgroundColor: res.state == SyncState.success ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
+                  onPressed: _isCatalogSyncing
+                      ? null
+                      : () async {
+                          setState(() => _isCatalogSyncing = true);
+                          try {
+                            final res = await widget.syncCoordinator!.runSync();
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(res.message),
+                                backgroundColor: res.state == SyncState.success ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          } catch (e) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Sync error: $e'),
+                                backgroundColor: const Color(0xFFEF4444),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          } finally {
+                            if (mounted) {
+                              setState(() => _isCatalogSyncing = false);
+                            }
+                          }
+                        },
                   minHeight: 48,
                   child: Container(
                     height: 48,
@@ -453,14 +655,17 @@ class TerminalPairingScreenState extends State<TerminalPairingScreen> {
                       color: const Color(0xFF10B981),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.sync_rounded, color: Colors.white, size: 20),
-                        SizedBox(width: 8),
+                        if (_isCatalogSyncing)
+                          const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        else
+                          const Icon(Icons.sync_rounded, color: Colors.white, size: 20),
+                        const SizedBox(width: 8),
                         Text(
-                          'Sync Catalog Now',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+                          _isCatalogSyncing ? 'Syncing...' : 'Sync Catalog Now',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
                         ),
                       ],
                     ),
@@ -468,6 +673,31 @@ class TerminalPairingScreenState extends State<TerminalPairingScreen> {
                 ),
                 const SizedBox(height: 12),
               ],
+              TactileButton(
+                onPressed: _showManualPairDialog,
+                minHeight: 44,
+                child: Container(
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.edit_note_rounded, color: Color(0xFF475569), size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        'Edit IP / Re-pair Manually',
+                        style: TextStyle(color: Color(0xFF475569), fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               TactileButton(
                 onPressed: _unpairTerminal,
                 minHeight: 48,

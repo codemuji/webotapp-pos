@@ -4,6 +4,8 @@ class Categories extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
   TextColumn get description => text().nullable()();
+  RealColumn get defaultTaxRate => real().withDefault(const Constant(0.0))();
+  TextColumn get defaultHsnCode => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -12,13 +14,19 @@ class Categories extends Table {
 class Products extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
-  TextColumn get barcode => text().nullable().unique()();
+  TextColumn get barcode => text().nullable()();
+  TextColumn get secondaryBarcode => text().nullable()();
   TextColumn get sku => text().nullable()();
   TextColumn get categoryId => text().nullable().customConstraint('REFERENCES categories(id)')();
   RealColumn get sellingPrice => real()();
   RealColumn get purchasePrice => real().nullable()();
   RealColumn get stockQuantity => real().withDefault(const Constant(0.0))();
   TextColumn get unit => text().withDefault(const Constant('pcs'))();
+  TextColumn get parentProductId => text().nullable()();
+  TextColumn get variantName => text().nullable()();
+  RealColumn get taxRate => real().withDefault(const Constant(0.0))();
+  TextColumn get hsnCode => text().nullable()();
+  RealColumn get minStockAlert => real().withDefault(const Constant(5.0))();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
   DateTimeColumn get updatedAt => dateTime()();
 

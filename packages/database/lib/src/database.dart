@@ -38,18 +38,77 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  Future<void> _safeAddColumn(String table, String column, String typeWithDefault) async {
+    try {
+      await customStatement('ALTER TABLE $table ADD COLUMN $column $typeWithDefault;');
+    } catch (_) {
+      // Column may already exist or table already has it
+    }
+  }
+
+  Future<void> _ensureSchemaV2() async {
+    // Categories new columns
+    await _safeAddColumn('categories', 'default_tax_rate', 'REAL NOT NULL DEFAULT 0.0');
+    await _safeAddColumn('categories', 'default_hsn_code', 'TEXT');
+
+    // Products new columns
+    await _safeAddColumn('products', 'secondary_barcode', 'TEXT');
+    await _safeAddColumn('products', 'parent_product_id', 'TEXT');
+    await _safeAddColumn('products', 'variant_name', 'TEXT');
+    await _safeAddColumn('products', 'tax_rate', 'REAL NOT NULL DEFAULT 0.0');
+    await _safeAddColumn('products', 'hsn_code', 'TEXT');
+    await _safeAddColumn('products', 'min_stock_alert', 'REAL NOT NULL DEFAULT 5.0');
+
+    // Safe backfill of null values for non-nullable Drift fields
+    try {
+      await customStatement('UPDATE products SET tax_rate = 0.0 WHERE tax_rate IS NULL;');
+      await customStatement('UPDATE products SET min_stock_alert = 5.0 WHERE min_stock_alert IS NULL;');
+      await customStatement('UPDATE categories SET default_tax_rate = 0.0 WHERE default_tax_rate IS NULL;');
+    } catch (_) {}
+  }
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON;');
+          await _ensureSchemaV2();
+        },
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await _ensureSchemaV2();
+          }
         },
       );
 
   // Product DAOs
   Future<Product?> getProductByBarcode(String barcode) {
-    return (select(products)..where((tbl) => tbl.barcode.equals(barcode))).getSingleOrNull();
+    return (select(products)
+          ..where((tbl) =>
+              (tbl.barcode.equals(barcode) | tbl.secondaryBarcode.equals(barcode)) &
+              tbl.isActive.equals(true)))
+        .getSingleOrNull();
+  }
+
+  Future<List<Product>> getProductsByBarcode(String barcode) {
+    return (select(products)
+          ..where((tbl) =>
+              (tbl.barcode.equals(barcode) | tbl.secondaryBarcode.equals(barcode)) &
+              tbl.isActive.equals(true)))
+        .get();
+  }
+
+  Future<List<Product>> getVariantsForProduct(String parentProductId) {
+    return (select(products)
+          ..where((tbl) => tbl.parentProductId.equals(parentProductId) & tbl.isActive.equals(true)))
+        .get();
+  }
+
+  Future<List<Product>> getLowStockProducts() {
+    return (select(products)
+          ..where((tbl) => tbl.isActive.equals(true) & tbl.stockQuantity.isSmallerOrEqual(tbl.minStockAlert)))
+        .get();
   }
 
   Future<List<Product>> getActiveProducts() {
@@ -61,7 +120,11 @@ class AppDatabase extends _$AppDatabase {
     return (select(products)
           ..where((tbl) =>
               tbl.isActive.equals(true) &
-              (tbl.name.like(term) | tbl.barcode.like(term) | tbl.sku.like(term))))
+              (tbl.name.like(term) |
+                  tbl.barcode.like(term) |
+                  tbl.secondaryBarcode.like(term) |
+                  tbl.sku.like(term) |
+                  tbl.variantName.like(term))))
         .get();
   }
 
@@ -324,6 +387,65 @@ class AppDatabase extends _$AppDatabase {
       cashierBreakdown: cashierBreakdown,
     );
   }
+
+  // Invoices & Sales Reporting DAOs
+  Future<List<Invoice>> getAllInvoices({
+    DateTime? startDate,
+    DateTime? endDate,
+    String? paymentMethod,
+    int? limit,
+  }) async {
+    var query = select(invoices);
+    if (startDate != null) {
+      query = query..where((tbl) => tbl.createdAt.isBiggerOrEqualValue(startDate));
+    }
+    if (endDate != null) {
+      query = query..where((tbl) => tbl.createdAt.isSmallerOrEqualValue(endDate));
+    }
+    if (paymentMethod != null && paymentMethod.isNotEmpty && paymentMethod != 'all') {
+      query = query..where((tbl) => tbl.paymentMethod.equals(paymentMethod));
+    }
+    query = query..orderBy([(tbl) => OrderingTerm(expression: tbl.createdAt, mode: OrderingMode.desc)]);
+    if (limit != null) {
+      query = query..limit(limit);
+    }
+    return query.get();
+  }
+
+  Future<List<InvoiceItem>> getInvoiceItems(String invoiceId) {
+    return (select(invoiceItems)..where((tbl) => tbl.invoiceId.equals(invoiceId))).get();
+  }
+
+  Future<InvoiceWithItems?> getInvoiceWithItems(String invoiceId) async {
+    final inv = await (select(invoices)..where((tbl) => tbl.id.equals(invoiceId))).getSingleOrNull();
+    if (inv == null) return null;
+    final items = await getInvoiceItems(invoiceId);
+    return InvoiceWithItems(invoice: inv, items: items);
+  }
+
+  Future<List<InvoiceWithItems>> getRecentInvoicesWithItems({int limit = 10}) async {
+    final invs = await getAllInvoices(limit: limit);
+    final results = <InvoiceWithItems>[];
+    for (final inv in invs) {
+      final items = await getInvoiceItems(inv.id);
+      results.add(InvoiceWithItems(invoice: inv, items: items));
+    }
+    return results;
+  }
+}
+
+/// A synced or recorded invoice paired with its immutable line items.
+class InvoiceWithItems {
+  final Invoice invoice;
+  final List<InvoiceItem> items;
+
+  const InvoiceWithItems({
+    required this.invoice,
+    required this.items,
+  });
+
+  int get itemsCount => items.length;
+  double get totalQuantity => items.fold(0.0, (sum, i) => sum + i.quantity);
 }
 
 /// Result of an idempotent synced invoice ingestion.

@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import '../widgets/tactile_button.dart';
 import 'sync_coordinator.dart';
 import 'terminal_storage.dart';
@@ -45,8 +47,12 @@ class _SyncStatusSheetContentState extends State<_SyncStatusSheetContent> {
   String? _serverUrl;
   bool _isPaired = false;
   int _pendingCount = 0;
+  int _localCatalogCount = 0;
   String? _feedbackMessage;
   bool _isFeedbackSuccess = true;
+  bool _isTesting = false;
+  String? _testMessage;
+  bool _isTestSuccess = false;
 
   @override
   void initState() {
@@ -55,10 +61,18 @@ class _SyncStatusSheetContentState extends State<_SyncStatusSheetContent> {
   }
 
   Future<void> _loadState() async {
-    final paired = await widget.storage.isPaired();
-    final name = await widget.storage.getStoreName();
-    final url = await widget.storage.getServerUrl();
-    final pending = await widget.coordinator.getPendingCount();
+    final paired = await widget.storage.isPaired().catchError((_) => false);
+    final name = await widget.storage.getStoreName().catchError((_) => null);
+    final url = await widget.storage.getServerUrl().catchError((_) => null);
+    int pending = 0;
+    int prodCount = 0;
+    try {
+      pending = await widget.coordinator.getPendingCount();
+      final prods = await widget.coordinator.database.getActiveProducts();
+      prodCount = prods.length;
+    } catch (e) {
+      debugPrint('Error loading db items in sheet: $e');
+    }
 
     if (mounted) {
       setState(() {
@@ -66,7 +80,42 @@ class _SyncStatusSheetContentState extends State<_SyncStatusSheetContent> {
         _storeName = name ?? (paired ? 'Connected Store' : 'Unpaired Terminal');
         _serverUrl = url ?? 'Not Connected';
         _pendingCount = pending;
+        _localCatalogCount = prodCount;
       });
+    }
+  }
+
+  Future<void> _handleTestConnection() async {
+    if (_serverUrl == null || _serverUrl == 'Not Connected') return;
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isTesting = true;
+      _testMessage = null;
+    });
+
+    try {
+      final client = http.Client();
+      final res = await client.get(Uri.parse('$_serverUrl/health')).timeout(const Duration(seconds: 3));
+      if (mounted) {
+        setState(() {
+          _isTesting = false;
+          _isTestSuccess = res.statusCode == 200;
+          if (res.statusCode == 200) {
+            final data = jsonDecode(res.body) as Map<String, dynamic>;
+            _testMessage = 'Online: Connected to "${data['storeName'] ?? 'Desktop'}"';
+          } else {
+            _testMessage = 'Server responded with HTTP ${res.statusCode}';
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isTesting = false;
+          _isTestSuccess = false;
+          _testMessage = 'Unreachable ($_serverUrl). Ensure laptop is on same Wi-Fi.';
+        });
+      }
     }
   }
 
@@ -77,16 +126,33 @@ class _SyncStatusSheetContentState extends State<_SyncStatusSheetContent> {
       _feedbackMessage = null;
     });
 
-    final result = await widget.coordinator.runSync();
-    final newPending = await widget.coordinator.getPendingCount();
+    try {
+      final result = await widget.coordinator.runSync();
+      int newPending = 0;
+      int prodCount = 0;
+      try {
+        newPending = await widget.coordinator.getPendingCount();
+        final prods = await widget.coordinator.database.getActiveProducts();
+        prodCount = prods.length;
+      } catch (_) {}
 
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-        _pendingCount = newPending;
-        _feedbackMessage = result.message;
-        _isFeedbackSuccess = result.state == SyncState.success;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _pendingCount = newPending;
+          _localCatalogCount = prodCount;
+          _feedbackMessage = result.message;
+          _isFeedbackSuccess = result.state == SyncState.success;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _feedbackMessage = 'Sync error: $e';
+          _isFeedbackSuccess = false;
+        });
+      }
     }
   }
 
@@ -192,12 +258,81 @@ class _SyncStatusSheetContentState extends State<_SyncStatusSheetContent> {
                       'Desktop Node:',
                       style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
                     ),
-                    Text(
-                      _serverUrl ?? '-',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF0F172A),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              _serverUrl ?? '-',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                          ),
+                          if (_isPaired && _serverUrl != null && _serverUrl != 'Not Connected') ...[
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTap: _isTesting ? null : _handleTestConnection,
+                              borderRadius: BorderRadius.circular(6),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEFF6FF),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                                ),
+                                child: _isTesting
+                                    ? const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5))
+                                    : const Text('Ping', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF2563EB))),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (_testMessage != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _isTestSuccess ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      _testMessage!,
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _isTestSuccess ? const Color(0xFF059669) : const Color(0xFFDC2626)),
+                    ),
+                  ),
+                ],
+                const Divider(height: 20, color: Color(0xFFE2E8F0)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Catalog Products Cached:',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _localCatalogCount > 0 ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '$_localCatalogCount item${_localCatalogCount == 1 ? '' : 's'}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: _localCatalogCount > 0 ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                        ),
                       ),
                     ),
                   ],

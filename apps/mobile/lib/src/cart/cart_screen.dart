@@ -1,6 +1,7 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../theme/webotapp_logo.dart';
 import '../widgets/tactile_button.dart';
 import 'cart_state.dart';
 import 'quantity_numpad_dialog.dart';
@@ -11,12 +12,14 @@ class CartScreen extends ConsumerWidget {
   final VoidCallback? onCheckoutPressed;
   final VoidCallback? onScanPressed;
   final VoidCallback? onPairPressed;
+  final VoidCallback? onBrowseCatalogPressed;
 
   const CartScreen({
     super.key,
     this.onCheckoutPressed,
     this.onScanPressed,
     this.onPairPressed,
+    this.onBrowseCatalogPressed,
   });
 
   @override
@@ -26,14 +29,25 @@ class CartScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC), // Slate 50
       appBar: AppBar(
-        title: const Text(
-          'Counter POS',
-          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+        title: const WebotAppLogo(
+          markSize: 22,
+          fontSize: 16,
+          subtitle: 'Counter POS',
         ),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF0F172A),
         elevation: 0,
         actions: [
+          if (onBrowseCatalogPressed != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 4.0),
+              child: TactileButton(
+                onPressed: onBrowseCatalogPressed,
+                minWidth: 44,
+                minHeight: 44,
+                child: const Icon(Icons.inventory_2_outlined, color: Color(0xFF0F172A)),
+              ),
+            ),
           if (onPairPressed != null)
             Padding(
               padding: const EdgeInsets.only(right: 4.0),
@@ -66,7 +80,10 @@ class CartScreen extends ConsumerWidget {
         ],
       ),
       body: cart.items.isEmpty
-          ? _EmptyCartView(onScanPressed: onScanPressed)
+          ? _EmptyCartView(
+              onScanPressed: onScanPressed,
+              onBrowseCatalogPressed: onBrowseCatalogPressed,
+            )
           : Column(
               children: [
                 Expanded(
@@ -95,8 +112,12 @@ class CartScreen extends ConsumerWidget {
 
 class _EmptyCartView extends StatelessWidget {
   final VoidCallback? onScanPressed;
+  final VoidCallback? onBrowseCatalogPressed;
 
-  const _EmptyCartView({this.onScanPressed});
+  const _EmptyCartView({
+    this.onScanPressed,
+    this.onBrowseCatalogPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -127,40 +148,68 @@ class _EmptyCartView extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Scan products or search to begin checkout',
+            'Scan products or browse catalog to begin checkout',
             style: TextStyle(
               fontSize: 14,
               color: Color(0xFF64748B),
             ),
           ),
-          if (onScanPressed != null) ...[
+          if (onScanPressed != null || onBrowseCatalogPressed != null) ...[
             const SizedBox(height: 24),
-            TactileButton(
-              onPressed: onScanPressed,
-              minWidth: 160,
-              minHeight: 48,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 20),
-                    SizedBox(width: 8),
-                    Text(
-                      'Start Scanning',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (onScanPressed != null)
+                  TactileButton(
+                    onPressed: onScanPressed,
+                    minWidth: 130,
+                    minHeight: 48,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 18),
+                          SizedBox(width: 6),
+                          Text(
+                            'Scan Barcode',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                if (onScanPressed != null && onBrowseCatalogPressed != null)
+                  const SizedBox(width: 12),
+                if (onBrowseCatalogPressed != null)
+                  TactileButton(
+                    onPressed: onBrowseCatalogPressed,
+                    minWidth: 130,
+                    minHeight: 48,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.inventory_2_outlined, color: Colors.white, size: 18),
+                          SizedBox(width: 6),
+                          Text(
+                            'Browse Catalog',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ],
         ],

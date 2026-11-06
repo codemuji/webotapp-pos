@@ -5,11 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'src/cart/cart_screen.dart';
+import 'src/cart/cart_state.dart';
+import 'src/catalog/mobile_catalog_screen.dart';
 import 'src/checkout/checkout_dialog.dart';
 import 'src/providers.dart';
 import 'src/scanner/barcode_scanner_screen.dart';
 import 'src/sync/sync_status_sheet.dart';
 import 'src/sync/terminal_pairing_screen.dart';
+import 'src/theme/webotapp_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,63 +38,110 @@ void main() async {
   );
 }
 
-class GroceryPosMobileApp extends ConsumerWidget {
+class GroceryPosMobileApp extends ConsumerStatefulWidget {
   const GroceryPosMobileApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GroceryPosMobileApp> createState() => _GroceryPosMobileAppState();
+}
+
+class _GroceryPosMobileAppState extends ConsumerState<GroceryPosMobileApp> {
+  int _tabIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
     final db = ref.watch(databaseProvider);
+    final syncCoord = ref.watch(syncCoordinatorProvider);
+    final storage = ref.watch(terminalStorageProvider);
+    final cart = ref.watch(cartProvider);
 
     return MaterialApp(
-      title: 'Grocery POS Mobile',
+      title: 'WebotApp POS Mobile',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF10B981), // Emerald
-          primary: const Color(0xFF10B981),
-        ),
-        fontFamily: 'Roboto',
-      ),
+      theme: WebotAppTheme.lightTheme,
       home: Builder(
-        builder: (context) => CartScreen(
-          onScanPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => BarcodeScannerScreen(
-                  database: db,
-                  syncCoordinator: ref.read(syncCoordinatorProvider),
-                ),
-              ),
-            );
-          },
-          onPairPressed: () {
-            showSyncStatusSheet(
-              context: context,
-              coordinator: ref.read(syncCoordinatorProvider),
-              storage: ref.read(terminalStorageProvider),
-              onPairNewServer: () {
+        builder: (context) {
+          final screens = [
+            CartScreen(
+              onScanPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => TerminalPairingScreen(
-                      storage: ref.read(terminalStorageProvider),
-                      pairingClient: ref.read(pairingClientProvider),
-                      syncCoordinator: ref.read(syncCoordinatorProvider),
+                    builder: (_) => BarcodeScannerScreen(
+                      database: db,
+                      syncCoordinator: syncCoord,
                     ),
                   ),
                 );
               },
-            );
-          },
-          onCheckoutPressed: () {
-            showTactileCheckoutDialog(
-              context: context,
+              onBrowseCatalogPressed: () {
+                setState(() => _tabIndex = 1);
+              },
+              onPairPressed: () {
+                showSyncStatusSheet(
+                  context: context,
+                  coordinator: syncCoord,
+                  storage: storage,
+                  onPairNewServer: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => TerminalPairingScreen(
+                          storage: storage,
+                          pairingClient: ref.read(pairingClientProvider),
+                          syncCoordinator: syncCoord,
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+              onCheckoutPressed: () {
+                showTactileCheckoutDialog(
+                  context: context,
+                  database: db,
+                  employeeId: 'emp-001',
+                  deviceId: 'term-mobile-01',
+                );
+              },
+            ),
+            MobileCatalogScreen(
               database: db,
-              employeeId: 'emp-001',
-              deviceId: 'term-mobile-01',
-            );
-          },
-        ),
+              syncCoordinator: syncCoord,
+              terminalStorage: storage,
+              isActiveTab: _tabIndex == 1,
+            ),
+          ];
+
+          return Scaffold(
+            body: IndexedStack(
+              index: _tabIndex,
+              children: screens,
+            ),
+            bottomNavigationBar: NavigationBar(
+              selectedIndex: _tabIndex,
+              onDestinationSelected: (idx) => setState(() => _tabIndex = idx),
+              destinations: [
+                NavigationDestination(
+                  icon: Badge(
+                    isLabelVisible: cart.items.isNotEmpty,
+                    label: Text('${cart.items.length}'),
+                    child: const Icon(Icons.shopping_cart_outlined),
+                  ),
+                  selectedIcon: Badge(
+                    isLabelVisible: cart.items.isNotEmpty,
+                    label: Text('${cart.items.length}'),
+                    child: const Icon(Icons.shopping_cart),
+                  ),
+                  label: 'Counter POS',
+                ),
+                const NavigationDestination(
+                  icon: Icon(Icons.inventory_2_outlined),
+                  selectedIcon: Icon(Icons.inventory_2),
+                  label: 'Catalog',
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

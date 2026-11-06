@@ -91,12 +91,23 @@ class CheckoutCoordinator {
     // 2. Build InvoiceItemsCompanion list
     final itemCompanions = <InvoiceItemsCompanion>[];
     final movementCompanions = <InventoryMovementsCompanion>[];
+    final lineResults = cart.calculationResult.lineResults;
 
     for (int i = 0; i < cart.items.length; i++) {
       final item = cart.items[i];
       final itemId = 'inv-item-$timestamp-$i';
       final movementId = 'mov-$timestamp-$i';
-      final lineTotal = item.unitPrice * item.quantity;
+
+      final calc = i < lineResults.length ? lineResults[i] : null;
+      final lineDiscount = calc != null
+          ? double.parse(calc.lineDiscount.toString())
+          : (item.discount != null ? double.parse(item.discount!.value.toString()) : 0.0);
+      final lineTax = calc != null
+          ? double.parse(calc.taxAmount.toString())
+          : (item.taxRate != null ? double.parse(item.taxRate!.toString()) : 0.0);
+      final lineTotal = calc != null
+          ? double.parse(calc.lineTotal.toString())
+          : double.parse((item.unitPrice * item.quantity).toString());
 
       itemCompanions.add(
         InvoiceItemsCompanion.insert(
@@ -107,9 +118,9 @@ class CheckoutCoordinator {
           barcode: Value(item.barcode),
           quantity: double.parse(item.quantity.toString()),
           unitPrice: double.parse(item.unitPrice.toString()),
-          discount: Value(item.discount != null ? double.parse(item.discount!.value.toString()) : 0.0),
-          taxAmount: Value(item.taxRate != null ? double.parse(item.taxRate!.toString()) : 0.0),
-          lineTotal: double.parse(lineTotal.toString()),
+          discount: Value(lineDiscount),
+          taxAmount: Value(lineTax),
+          lineTotal: lineTotal,
         ),
       );
 
@@ -140,14 +151,22 @@ class CheckoutCoordinator {
         'paymentMethod': paymentMethod,
         'createdAt': now.toIso8601String(),
       },
-      'items': cart.items.map((i) => {
-        'productId': i.productId,
-        'productName': i.productName,
-        'barcode': i.barcode,
-        'quantity': double.parse(i.quantity.toString()),
-        'unitPrice': double.parse(i.unitPrice.toString()),
-        'lineTotal': double.parse((i.unitPrice * i.quantity).toString()),
-      }).toList(),
+      'items': [
+        for (int i = 0; i < cart.items.length; i++)
+          {
+            'id': 'inv-item-$timestamp-$i',
+            'productId': cart.items[i].productId,
+            'productName': cart.items[i].productName,
+            'barcode': cart.items[i].barcode,
+            'quantity': double.parse(cart.items[i].quantity.toString()),
+            'unitPrice': double.parse(cart.items[i].unitPrice.toString()),
+            'discount': i < lineResults.length ? double.parse(lineResults[i].lineDiscount.toString()) : 0.0,
+            'taxAmount': i < lineResults.length ? double.parse(lineResults[i].taxAmount.toString()) : 0.0,
+            'lineTotal': i < lineResults.length
+                ? double.parse(lineResults[i].lineTotal.toString())
+                : double.parse((cart.items[i].unitPrice * cart.items[i].quantity).toString()),
+          }
+      ],
     });
 
     final syncQueueItem = SyncQueueCompanion.insert(

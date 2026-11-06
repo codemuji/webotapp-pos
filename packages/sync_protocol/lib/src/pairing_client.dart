@@ -35,6 +35,16 @@ class PairingClient {
     return PairingQrPayload.tryParse(rawQr);
   }
 
+  /// Quick ping to verify server reachability.
+  Future<bool> ping(String serverUrl) async {
+    try {
+      final res = await _httpClient.get(Uri.parse('$serverUrl/health')).timeout(const Duration(seconds: 8));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Sends a pairing request to the desktop sync server and negotiates credentials.
   Future<PairingResult> pair({
     required PairingQrPayload payload,
@@ -53,7 +63,7 @@ class PairingClient {
           'deviceName': deviceName,
           'pairingSecret': payload.pairingSecret,
         }),
-      );
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;

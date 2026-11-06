@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:database/database.dart';
 import 'package:decimal/decimal.dart';
@@ -6,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import '../cart/cart_state.dart';
+import '../providers.dart';
+import '../sync/sync_coordinator.dart';
 import '../widgets/tactile_button.dart';
 import 'cash_tender_calculator.dart';
 import 'checkout_coordinator.dart';
@@ -79,6 +82,11 @@ class _CheckoutDialogContentState extends ConsumerState<_CheckoutDialogContent> 
   Decimal _snapshottedDiscount = Decimal.zero;
   Decimal _snapshottedTax = Decimal.zero;
 
+  // Auto-sync state
+  bool _isAutoSyncing = false;
+  bool _autoSyncSuccess = false;
+  String _autoSyncMessage = '';
+
   @override
   void initState() {
     super.initState();
@@ -94,6 +102,52 @@ class _CheckoutDialogContentState extends ConsumerState<_CheckoutDialogContent> 
     setState(() {
       _tenderedAmount = amount;
     });
+  }
+
+  Future<void> _autoSyncSale() async {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      if (mounted) {
+        setState(() {
+          _isAutoSyncing = false;
+          _autoSyncSuccess = true;
+          _autoSyncMessage = 'Sale recorded offline';
+        });
+      }
+      return;
+    }
+
+    setState(() {
+      _isAutoSyncing = true;
+      _autoSyncMessage = 'Syncing sale with Desktop node...';
+    });
+
+    try {
+      final syncCoord = ref.read(syncCoordinatorProvider);
+      final res = await syncCoord.runSync().timeout(const Duration(seconds: 4));
+      if (mounted) {
+        setState(() {
+          _isAutoSyncing = false;
+          if (res.state == SyncState.success) {
+            _autoSyncSuccess = true;
+            _autoSyncMessage = 'Synced with Desktop Admin Node';
+          } else if (res.state == SyncState.notPaired) {
+            _autoSyncSuccess = false;
+            _autoSyncMessage = 'Terminal not paired (Sale saved offline)';
+          } else {
+            _autoSyncSuccess = false;
+            _autoSyncMessage = 'Saved offline (Will auto-sync when online)';
+          }
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isAutoSyncing = false;
+          _autoSyncSuccess = false;
+          _autoSyncMessage = 'Saved offline (Will auto-sync when online)';
+        });
+      }
+    }
   }
 
   Future<void> _completeSale(CartState cart) async {
@@ -118,6 +172,7 @@ class _CheckoutDialogContentState extends ConsumerState<_CheckoutDialogContent> 
           _isProcessing = false;
         });
         widget.onCompleted?.call();
+        _autoSyncSale();
       }
     } catch (e) {
       if (mounted) {
@@ -136,8 +191,8 @@ class _CheckoutDialogContentState extends ConsumerState<_CheckoutDialogContent> 
     if (_checkoutResult == null) return;
 
     final store = const StoreInfo(
-      storeName: 'FRESH MART GROCERY',
-      address: 'Shop 12, Main Market, Bengaluru',
+      storeName: 'WEBOTAPP STORE',
+      address: 'WebotApp Retail Ecosystem, Tech Hub',
       phone: '+91 98765 43210',
       gstin: '29ABCDE1234F1Z5',
     );
@@ -182,7 +237,7 @@ class _CheckoutDialogContentState extends ConsumerState<_CheckoutDialogContent> 
   Future<void> _shareWhatsApp() async {
     if (_checkoutResult == null) return;
 
-    final message = 'Thank you for shopping at FRESH MART! Bill #${_checkoutResult!.invoiceNumber} for Rs. ${_checkoutResult!.totalAmount.toStringAsFixed(2)} has been generated.';
+    final message = 'Thank you for shopping at WebotApp! Bill #${_checkoutResult!.invoiceNumber} for Rs. ${_checkoutResult!.totalAmount.toStringAsFixed(2)} has been generated.';
     try {
       await Share.share(message, subject: 'Bill #${_checkoutResult!.invoiceNumber}');
     } catch (_) {
@@ -545,7 +600,76 @@ class _CheckoutDialogContentState extends ConsumerState<_CheckoutDialogContent> 
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
+
+          // Auto-Sync to Desktop Indicator
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: _isAutoSyncing
+                  ? const Color(0xFFF1F5F9)
+                  : _autoSyncSuccess
+                      ? const Color(0xFFECFDF5)
+                      : const Color(0xFFFFFBEB),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: _isAutoSyncing
+                    ? const Color(0xFFCBD5E1)
+                    : _autoSyncSuccess
+                        ? const Color(0xFFA7F3D0)
+                        : const Color(0xFFFDE68A),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (_isAutoSyncing)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF64748B)),
+                  )
+                else
+                  Icon(
+                    _autoSyncSuccess ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                    size: 16,
+                    color: _autoSyncSuccess ? const Color(0xFF059669) : const Color(0xFFD97706),
+                  ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    _autoSyncMessage,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: _isAutoSyncing
+                          ? const Color(0xFF475569)
+                          : _autoSyncSuccess
+                              ? const Color(0xFF065F46)
+                              : const Color(0xFF92400E),
+                    ),
+                  ),
+                ),
+                if (!_isAutoSyncing && !_autoSyncSuccess) ...[
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _autoSyncSale,
+                    child: const Text(
+                      'Retry',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFD97706),
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
 
           // Print Receipt Action
           TactileButton(

@@ -1,14 +1,18 @@
 import 'package:database/database.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../sales/invoice_detail_dialog.dart';
 
 /// Executive Store Admin Dashboard showing real-time revenue, order metrics,
-/// payment method breakdown, and cashier performance.
+/// payment method breakdown, cashier performance, and recent synced sales transactions.
 class AdminDashboardScreen extends StatefulWidget {
   final AppDatabase database;
+  final VoidCallback? onNavigateToSales;
 
   const AdminDashboardScreen({
     super.key,
     required this.database,
+    this.onNavigateToSales,
   });
 
   @override
@@ -17,6 +21,7 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   DashboardMetrics? _metrics;
+  List<InvoiceWithItems> _recentSales = [];
   bool _isLoading = true;
 
   @override
@@ -28,9 +33,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Future<void> _loadMetrics() async {
     setState(() => _isLoading = true);
     final metrics = await widget.database.getDashboardMetrics();
+    final recent = await widget.database.getRecentInvoicesWithItems(limit: 5);
     if (mounted) {
       setState(() {
         _metrics = metrics;
+        _recentSales = recent;
         _isLoading = false;
       });
     }
@@ -253,6 +260,108 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 24),
+
+                    // Recent Synced Sales Section
+                    _CardContainer(
+                      title: 'Recent Synced Sales & Transactions',
+                      icon: Icons.receipt_long_rounded,
+                      action: widget.onNavigateToSales != null
+                          ? TextButton.icon(
+                              onPressed: widget.onNavigateToSales,
+                              icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                              label: const Text('View All Sales'),
+                            )
+                          : null,
+                      child: _recentSales.isEmpty
+                          ? const Padding(
+                              padding: EdgeInsets.all(24.0),
+                              child: Center(
+                                child: Text(
+                                  'No sales synced from mobile terminals yet',
+                                  style: TextStyle(color: Color(0xFF94A3B8)),
+                                ),
+                              ),
+                            )
+                          : ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: DataTable(
+                                  headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+                                  columnSpacing: 20,
+                                  columns: const [
+                                    DataColumn(label: Text('Invoice #', style: TextStyle(fontWeight: FontWeight.bold))),
+                                    DataColumn(label: Text('Date & Time', style: TextStyle(fontWeight: FontWeight.bold))),
+                                    DataColumn(label: Text('Terminal / Cashier', style: TextStyle(fontWeight: FontWeight.bold))),
+                                    DataColumn(label: Text('Items', style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                                    DataColumn(label: Text('Discounts', style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                                    DataColumn(label: Text('Total', style: TextStyle(fontWeight: FontWeight.bold)), numeric: true),
+                                    DataColumn(label: Text('Payment', style: TextStyle(fontWeight: FontWeight.bold))),
+                                    DataColumn(label: Text('Action', style: TextStyle(fontWeight: FontWeight.bold))),
+                                  ],
+                                  rows: _recentSales.map((sale) {
+                                    final inv = sale.invoice;
+                                    final dateFormat = DateFormat('dd MMM, hh:mm a');
+                                    return DataRow(
+                                      cells: [
+                                        DataCell(
+                                          Text(
+                                            inv.invoiceNumber,
+                                            style: const TextStyle(fontWeight: FontWeight.w700, fontFamily: 'monospace'),
+                                          ),
+                                        ),
+                                        DataCell(Text(dateFormat.format(inv.createdAt), style: const TextStyle(fontSize: 12))),
+                                        DataCell(Text('${inv.deviceId} (${inv.employeeId})', style: const TextStyle(fontSize: 12))),
+                                        DataCell(Text('${sale.items.length}')),
+                                        DataCell(
+                                          inv.discount > 0
+                                              ? Text(
+                                                  '-₹${inv.discount.toStringAsFixed(2)}',
+                                                  style: const TextStyle(color: Color(0xFFD97706), fontWeight: FontWeight.bold, fontSize: 12),
+                                                )
+                                              : const Text('-', style: TextStyle(color: Color(0xFF94A3B8))),
+                                        ),
+                                        DataCell(
+                                          Text(
+                                            '₹${inv.totalAmount.toStringAsFixed(2)}',
+                                            style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF10B981)),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: _colorForPaymentMethod(inv.paymentMethod).withOpacity(0.12),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              _formatPaymentMethod(inv.paymentMethod),
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: _colorForPaymentMethod(inv.paymentMethod),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          IconButton(
+                                            onPressed: () => showInvoiceDetailDialog(
+                                              context: context,
+                                              invoiceWithItems: sale,
+                                            ),
+                                            tooltip: 'View Sale Breakdown & Products',
+                                            icon: const Icon(Icons.visibility_outlined, size: 18, color: Color(0xFF2563EB)),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ),
+                    ),
                   ],
                 ],
               ),
@@ -364,11 +473,13 @@ class _MetricCard extends StatelessWidget {
 class _CardContainer extends StatelessWidget {
   final String title;
   final IconData icon;
+  final Widget? action;
   final Widget child;
 
   const _CardContainer({
     required this.title,
     required this.icon,
+    this.action,
     required this.child,
   });
 
@@ -405,6 +516,7 @@ class _CardContainer extends StatelessWidget {
                   ),
                 ),
               ),
+              if (action != null) action!,
             ],
           ),
           const SizedBox(height: 16),
