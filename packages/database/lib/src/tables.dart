@@ -27,6 +27,8 @@ class Products extends Table {
   RealColumn get taxRate => real().withDefault(const Constant(0.0))();
   TextColumn get hsnCode => text().nullable()();
   RealColumn get minStockAlert => real().withDefault(const Constant(5.0))();
+  DateTimeColumn get expiryDate => dateTime().nullable()();
+  TextColumn get batchNumber => text().nullable()();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
   DateTimeColumn get updatedAt => dateTime()();
 

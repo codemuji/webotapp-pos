@@ -38,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
         );
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   Future<void> _safeAddColumn(String table, String column, String typeWithDefault) async {
     try {
@@ -69,15 +69,24 @@ class AppDatabase extends _$AppDatabase {
     } catch (_) {}
   }
 
+  Future<void> _ensureSchemaV3() async {
+    await _ensureSchemaV2();
+    await _safeAddColumn('products', 'expiry_date', 'INTEGER');
+    await _safeAddColumn('products', 'batch_number', 'TEXT');
+  }
+
   @override
   MigrationStrategy get migration => MigrationStrategy(
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON;');
-          await _ensureSchemaV2();
+          await _ensureSchemaV3();
         },
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await _ensureSchemaV2();
+          }
+          if (from < 3) {
+            await _ensureSchemaV3();
           }
         },
       );
@@ -107,8 +116,64 @@ class AppDatabase extends _$AppDatabase {
 
   Future<List<Product>> getLowStockProducts() {
     return (select(products)
-          ..where((tbl) => tbl.isActive.equals(true) & tbl.stockQuantity.isSmallerOrEqual(tbl.minStockAlert)))
+          ..where((tbl) => tbl.isActive.equals(true) & tbl.stockQuantity.isSmallerOrEqual(tbl.minStockAlert))
+          ..orderBy([(tbl) => OrderingTerm(expression: tbl.stockQuantity, mode: OrderingMode.asc)]))
         .get();
+  }
+
+  Future<List<Product>> getExpiringProducts({int days = 30}) {
+    final cutoff = DateTime.now().add(Duration(days: days));
+    return (select(products)
+          ..where((tbl) =>
+              tbl.isActive.equals(true) &
+              tbl.expiryDate.isNotNull() &
+              tbl.expiryDate.isSmallerOrEqualValue(cutoff))
+          ..orderBy([(tbl) => OrderingTerm(expression: tbl.expiryDate, mode: OrderingMode.asc)]))
+        .get();
+  }
+
+  Future<List<Product>> getExpiredProducts() {
+    final now = DateTime.now();
+    return (select(products)
+          ..where((tbl) =>
+              tbl.isActive.equals(true) &
+              tbl.expiryDate.isNotNull() &
+              tbl.expiryDate.isSmallerThanValue(now))
+          ..orderBy([(tbl) => OrderingTerm(expression: tbl.expiryDate, mode: OrderingMode.asc)]))
+        .get();
+  }
+
+  Future<void> recordStockAdjustment({
+    required String productId,
+    required double deltaQuantity,
+    required String reason,
+    String? referenceId,
+  }) {
+    return transaction(() async {
+      final prod = await (select(products)..where((tbl) => tbl.id.equals(productId))).getSingleOrNull();
+      if (prod == null) return;
+
+      final newQty = (prod.stockQuantity + deltaQuantity).clamp(0.0, 999999.0);
+      final movId = 'mov-${DateTime.now().millisecondsSinceEpoch}-${productId.hashCode.abs()}';
+
+      await into(inventoryMovements).insert(
+        InventoryMovementsCompanion.insert(
+          id: movId,
+          productId: productId,
+          deltaQuantity: deltaQuantity,
+          reason: reason,
+          referenceId: Value(referenceId),
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      await (update(products)..where((tbl) => tbl.id.equals(productId))).write(
+        ProductsCompanion(
+          stockQuantity: Value(newQty),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    });
   }
 
   Future<List<Product>> getActiveProducts() {

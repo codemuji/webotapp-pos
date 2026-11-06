@@ -548,6 +548,28 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
     requiredDuringInsert: false,
     defaultValue: const Constant(5.0),
   );
+  static const VerificationMeta _expiryDateMeta = const VerificationMeta(
+    'expiryDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> expiryDate = GeneratedColumn<DateTime>(
+    'expiry_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _batchNumberMeta = const VerificationMeta(
+    'batchNumber',
+  );
+  @override
+  late final GeneratedColumn<String> batchNumber = GeneratedColumn<String>(
+    'batch_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isActiveMeta = const VerificationMeta(
     'isActive',
   );
@@ -591,6 +613,8 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
     taxRate,
     hsnCode,
     minStockAlert,
+    expiryDate,
+    batchNumber,
     isActive,
     updatedAt,
   ];
@@ -720,6 +744,21 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
         ),
       );
     }
+    if (data.containsKey('expiry_date')) {
+      context.handle(
+        _expiryDateMeta,
+        expiryDate.isAcceptableOrUnknown(data['expiry_date']!, _expiryDateMeta),
+      );
+    }
+    if (data.containsKey('batch_number')) {
+      context.handle(
+        _batchNumberMeta,
+        batchNumber.isAcceptableOrUnknown(
+          data['batch_number']!,
+          _batchNumberMeta,
+        ),
+      );
+    }
     if (data.containsKey('is_active')) {
       context.handle(
         _isActiveMeta,
@@ -803,6 +842,14 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
         DriftSqlType.double,
         data['${effectivePrefix}min_stock_alert'],
       )!,
+      expiryDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}expiry_date'],
+      ),
+      batchNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}batch_number'],
+      ),
       isActive: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
@@ -836,6 +883,8 @@ class Product extends DataClass implements Insertable<Product> {
   final double taxRate;
   final String? hsnCode;
   final double minStockAlert;
+  final DateTime? expiryDate;
+  final String? batchNumber;
   final bool isActive;
   final DateTime updatedAt;
   const Product({
@@ -854,6 +903,8 @@ class Product extends DataClass implements Insertable<Product> {
     required this.taxRate,
     this.hsnCode,
     required this.minStockAlert,
+    this.expiryDate,
+    this.batchNumber,
     required this.isActive,
     required this.updatedAt,
   });
@@ -891,6 +942,12 @@ class Product extends DataClass implements Insertable<Product> {
       map['hsn_code'] = Variable<String>(hsnCode);
     }
     map['min_stock_alert'] = Variable<double>(minStockAlert);
+    if (!nullToAbsent || expiryDate != null) {
+      map['expiry_date'] = Variable<DateTime>(expiryDate);
+    }
+    if (!nullToAbsent || batchNumber != null) {
+      map['batch_number'] = Variable<String>(batchNumber);
+    }
     map['is_active'] = Variable<bool>(isActive);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -927,6 +984,12 @@ class Product extends DataClass implements Insertable<Product> {
           ? const Value.absent()
           : Value(hsnCode),
       minStockAlert: Value(minStockAlert),
+      expiryDate: expiryDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expiryDate),
+      batchNumber: batchNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(batchNumber),
       isActive: Value(isActive),
       updatedAt: Value(updatedAt),
     );
@@ -953,6 +1016,8 @@ class Product extends DataClass implements Insertable<Product> {
       taxRate: serializer.fromJson<double>(json['taxRate']),
       hsnCode: serializer.fromJson<String?>(json['hsnCode']),
       minStockAlert: serializer.fromJson<double>(json['minStockAlert']),
+      expiryDate: serializer.fromJson<DateTime?>(json['expiryDate']),
+      batchNumber: serializer.fromJson<String?>(json['batchNumber']),
       isActive: serializer.fromJson<bool>(json['isActive']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -976,6 +1041,8 @@ class Product extends DataClass implements Insertable<Product> {
       'taxRate': serializer.toJson<double>(taxRate),
       'hsnCode': serializer.toJson<String?>(hsnCode),
       'minStockAlert': serializer.toJson<double>(minStockAlert),
+      'expiryDate': serializer.toJson<DateTime?>(expiryDate),
+      'batchNumber': serializer.toJson<String?>(batchNumber),
       'isActive': serializer.toJson<bool>(isActive),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -997,6 +1064,8 @@ class Product extends DataClass implements Insertable<Product> {
     double? taxRate,
     Value<String?> hsnCode = const Value.absent(),
     double? minStockAlert,
+    Value<DateTime?> expiryDate = const Value.absent(),
+    Value<String?> batchNumber = const Value.absent(),
     bool? isActive,
     DateTime? updatedAt,
   }) => Product(
@@ -1021,6 +1090,8 @@ class Product extends DataClass implements Insertable<Product> {
     taxRate: taxRate ?? this.taxRate,
     hsnCode: hsnCode.present ? hsnCode.value : this.hsnCode,
     minStockAlert: minStockAlert ?? this.minStockAlert,
+    expiryDate: expiryDate.present ? expiryDate.value : this.expiryDate,
+    batchNumber: batchNumber.present ? batchNumber.value : this.batchNumber,
     isActive: isActive ?? this.isActive,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -1057,6 +1128,12 @@ class Product extends DataClass implements Insertable<Product> {
       minStockAlert: data.minStockAlert.present
           ? data.minStockAlert.value
           : this.minStockAlert,
+      expiryDate: data.expiryDate.present
+          ? data.expiryDate.value
+          : this.expiryDate,
+      batchNumber: data.batchNumber.present
+          ? data.batchNumber.value
+          : this.batchNumber,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -1080,6 +1157,8 @@ class Product extends DataClass implements Insertable<Product> {
           ..write('taxRate: $taxRate, ')
           ..write('hsnCode: $hsnCode, ')
           ..write('minStockAlert: $minStockAlert, ')
+          ..write('expiryDate: $expiryDate, ')
+          ..write('batchNumber: $batchNumber, ')
           ..write('isActive: $isActive, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1103,6 +1182,8 @@ class Product extends DataClass implements Insertable<Product> {
     taxRate,
     hsnCode,
     minStockAlert,
+    expiryDate,
+    batchNumber,
     isActive,
     updatedAt,
   );
@@ -1125,6 +1206,8 @@ class Product extends DataClass implements Insertable<Product> {
           other.taxRate == this.taxRate &&
           other.hsnCode == this.hsnCode &&
           other.minStockAlert == this.minStockAlert &&
+          other.expiryDate == this.expiryDate &&
+          other.batchNumber == this.batchNumber &&
           other.isActive == this.isActive &&
           other.updatedAt == this.updatedAt);
 }
@@ -1145,6 +1228,8 @@ class ProductsCompanion extends UpdateCompanion<Product> {
   final Value<double> taxRate;
   final Value<String?> hsnCode;
   final Value<double> minStockAlert;
+  final Value<DateTime?> expiryDate;
+  final Value<String?> batchNumber;
   final Value<bool> isActive;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -1164,6 +1249,8 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     this.taxRate = const Value.absent(),
     this.hsnCode = const Value.absent(),
     this.minStockAlert = const Value.absent(),
+    this.expiryDate = const Value.absent(),
+    this.batchNumber = const Value.absent(),
     this.isActive = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1184,6 +1271,8 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     this.taxRate = const Value.absent(),
     this.hsnCode = const Value.absent(),
     this.minStockAlert = const Value.absent(),
+    this.expiryDate = const Value.absent(),
+    this.batchNumber = const Value.absent(),
     this.isActive = const Value.absent(),
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -1207,6 +1296,8 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     Expression<double>? taxRate,
     Expression<String>? hsnCode,
     Expression<double>? minStockAlert,
+    Expression<DateTime>? expiryDate,
+    Expression<String>? batchNumber,
     Expression<bool>? isActive,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -1227,6 +1318,8 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       if (taxRate != null) 'tax_rate': taxRate,
       if (hsnCode != null) 'hsn_code': hsnCode,
       if (minStockAlert != null) 'min_stock_alert': minStockAlert,
+      if (expiryDate != null) 'expiry_date': expiryDate,
+      if (batchNumber != null) 'batch_number': batchNumber,
       if (isActive != null) 'is_active': isActive,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -1249,6 +1342,8 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     Value<double>? taxRate,
     Value<String?>? hsnCode,
     Value<double>? minStockAlert,
+    Value<DateTime?>? expiryDate,
+    Value<String?>? batchNumber,
     Value<bool>? isActive,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -1269,6 +1364,8 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       taxRate: taxRate ?? this.taxRate,
       hsnCode: hsnCode ?? this.hsnCode,
       minStockAlert: minStockAlert ?? this.minStockAlert,
+      expiryDate: expiryDate ?? this.expiryDate,
+      batchNumber: batchNumber ?? this.batchNumber,
       isActive: isActive ?? this.isActive,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -1323,6 +1420,12 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     if (minStockAlert.present) {
       map['min_stock_alert'] = Variable<double>(minStockAlert.value);
     }
+    if (expiryDate.present) {
+      map['expiry_date'] = Variable<DateTime>(expiryDate.value);
+    }
+    if (batchNumber.present) {
+      map['batch_number'] = Variable<String>(batchNumber.value);
+    }
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
@@ -1353,6 +1456,8 @@ class ProductsCompanion extends UpdateCompanion<Product> {
           ..write('taxRate: $taxRate, ')
           ..write('hsnCode: $hsnCode, ')
           ..write('minStockAlert: $minStockAlert, ')
+          ..write('expiryDate: $expiryDate, ')
+          ..write('batchNumber: $batchNumber, ')
           ..write('isActive: $isActive, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -4819,6 +4924,8 @@ typedef $$ProductsTableCreateCompanionBuilder =
       Value<double> taxRate,
       Value<String?> hsnCode,
       Value<double> minStockAlert,
+      Value<DateTime?> expiryDate,
+      Value<String?> batchNumber,
       Value<bool> isActive,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -4840,6 +4947,8 @@ typedef $$ProductsTableUpdateCompanionBuilder =
       Value<double> taxRate,
       Value<String?> hsnCode,
       Value<double> minStockAlert,
+      Value<DateTime?> expiryDate,
+      Value<String?> batchNumber,
       Value<bool> isActive,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -4987,6 +5096,16 @@ class $$ProductsTableFilterComposer
 
   ColumnFilters<double> get minStockAlert => $composableBuilder(
     column: $table.minStockAlert,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get expiryDate => $composableBuilder(
+    column: $table.expiryDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get batchNumber => $composableBuilder(
+    column: $table.batchNumber,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5153,6 +5272,16 @@ class $$ProductsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get expiryDate => $composableBuilder(
+    column: $table.expiryDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get batchNumber => $composableBuilder(
+    column: $table.batchNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isActive => $composableBuilder(
     column: $table.isActive,
     builder: (column) => ColumnOrderings(column),
@@ -5249,6 +5378,16 @@ class $$ProductsTableAnnotationComposer
 
   GeneratedColumn<double> get minStockAlert => $composableBuilder(
     column: $table.minStockAlert,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get expiryDate => $composableBuilder(
+    column: $table.expiryDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get batchNumber => $composableBuilder(
+    column: $table.batchNumber,
     builder: (column) => column,
   );
 
@@ -5380,6 +5519,8 @@ class $$ProductsTableTableManager
                 Value<double> taxRate = const Value.absent(),
                 Value<String?> hsnCode = const Value.absent(),
                 Value<double> minStockAlert = const Value.absent(),
+                Value<DateTime?> expiryDate = const Value.absent(),
+                Value<String?> batchNumber = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -5399,6 +5540,8 @@ class $$ProductsTableTableManager
                 taxRate: taxRate,
                 hsnCode: hsnCode,
                 minStockAlert: minStockAlert,
+                expiryDate: expiryDate,
+                batchNumber: batchNumber,
                 isActive: isActive,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -5420,6 +5563,8 @@ class $$ProductsTableTableManager
                 Value<double> taxRate = const Value.absent(),
                 Value<String?> hsnCode = const Value.absent(),
                 Value<double> minStockAlert = const Value.absent(),
+                Value<DateTime?> expiryDate = const Value.absent(),
+                Value<String?> batchNumber = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -5439,6 +5584,8 @@ class $$ProductsTableTableManager
                 taxRate: taxRate,
                 hsnCode: hsnCode,
                 minStockAlert: minStockAlert,
+                expiryDate: expiryDate,
+                batchNumber: batchNumber,
                 isActive: isActive,
                 updatedAt: updatedAt,
                 rowid: rowid,

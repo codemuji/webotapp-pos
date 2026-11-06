@@ -519,6 +519,8 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
     final stockCtrl = TextEditingController(text: existing != null ? existing.stockQuantity.toString() : '10');
     final minStockCtrl = TextEditingController(text: existing != null ? existing.minStockAlert.toString() : '5');
     final hsnCtrl = TextEditingController(text: existing?.hsnCode ?? '');
+    final batchCtrl = TextEditingController(text: existing?.batchNumber ?? '');
+    DateTime? selectedExpiryDate = existing?.expiryDate;
 
     String selectedUnit = existing?.unit ?? 'pcs';
     double selectedTaxRate = existing?.taxRate ?? 5.0;
@@ -771,6 +773,7 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
 
                   // Stock & Low Stock Reorder Threshold
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: TextField(
@@ -785,14 +788,45 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: TextField(
-                          controller: minStockCtrl,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: const InputDecoration(
-                            labelText: 'Min Stock Alert Threshold',
-                            hintText: 'Alert when stock falls below',
-                            border: OutlineInputBorder(),
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextField(
+                              controller: minStockCtrl,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: const InputDecoration(
+                                labelText: 'Min Stock Alert Threshold',
+                                hintText: 'Alert below',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Wrap(
+                              spacing: 4,
+                              children: [
+                                const Text('Presets:', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                                for (final val in ['3', '5', '10', '20', '50'])
+                                  InkWell(
+                                    onTap: () => setDialogState(() => minStockCtrl.text = val),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: minStockCtrl.text == val ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        val,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: minStockCtrl.text == val ? Colors.white : const Color(0xFF334155),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -807,6 +841,148 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Expiry Date & Batch Tracking Card
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.event_available_rounded, size: 18, color: Color(0xFF475569)),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Expiry & Shelf-Life Management',
+                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF334155)),
+                                ),
+                              ],
+                            ),
+                            if (selectedExpiryDate != null)
+                              InkWell(
+                                onTap: () => setDialogState(() => selectedExpiryDate = null),
+                                borderRadius: BorderRadius.circular(4),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.close_rounded, size: 14, color: Color(0xFFEF4444)),
+                                      SizedBox(width: 4),
+                                      Text('Clear Expiry', style: TextStyle(color: Color(0xFFEF4444), fontSize: 11, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: InkWell(
+                                onTap: () async {
+                                  final picked = await showDatePicker(
+                                    context: ctx,
+                                    initialDate: selectedExpiryDate ?? DateTime.now().add(const Duration(days: 30)),
+                                    firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                                    lastDate: DateTime.now().add(const Duration(days: 3650)),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(() => selectedExpiryDate = picked);
+                                  }
+                                },
+                                child: Container(
+                                  height: 48,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: selectedExpiryDate != null ? const Color(0xFF10B981) : const Color(0xFFCBD5E1)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.calendar_month_rounded,
+                                        size: 20,
+                                        color: selectedExpiryDate != null ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          selectedExpiryDate == null
+                                              ? 'No Expiry Set (Tap to choose)'
+                                              : '${selectedExpiryDate!.day.toString().padLeft(2, '0')}/${selectedExpiryDate!.month.toString().padLeft(2, '0')}/${selectedExpiryDate!.year} (${selectedExpiryDate!.difference(DateTime.now()).inDays < 0 ? 'Expired' : 'Expires in ${selectedExpiryDate!.difference(DateTime.now()).inDays} days'})',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: selectedExpiryDate != null ? FontWeight.w600 : FontWeight.normal,
+                                            color: selectedExpiryDate != null ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              flex: 2,
+                              child: TextField(
+                                controller: batchCtrl,
+                                decoration: const InputDecoration(
+                                  labelText: 'Batch / Lot No.',
+                                  hintText: 'e.g. B-2026-NOV',
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            const Text('Shelf-life Presets:', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                            for (final entry in [
+                              MapEntry('+7 Days', const Duration(days: 7)),
+                              MapEntry('+15 Days', const Duration(days: 15)),
+                              MapEntry('+1 Month', const Duration(days: 30)),
+                              MapEntry('+3 Months', const Duration(days: 90)),
+                              MapEntry('+6 Months', const Duration(days: 180)),
+                              MapEntry('+1 Year', const Duration(days: 365)),
+                            ])
+                              InkWell(
+                                onTap: () => setDialogState(() => selectedExpiryDate = DateTime.now().add(entry.value)),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE2E8F0),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    entry.key,
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -849,6 +1025,8 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
                       taxRate: Value(selectedTaxRate),
                       hsnCode: Value(hsn.isNotEmpty ? hsn : null),
                       minStockAlert: Value(minStock),
+                      expiryDate: Value(selectedExpiryDate),
+                      batchNumber: Value(batchCtrl.text.trim().isNotEmpty ? batchCtrl.text.trim() : null),
                       updatedAt: DateTime.now(),
                     ),
                   );

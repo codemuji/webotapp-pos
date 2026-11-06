@@ -146,6 +146,9 @@ class SyncQueueWorker {
         }
 
         for (final prod in products) {
+          final expStr = prod['expiryDate'] as String?;
+          final expDate = expStr != null ? DateTime.tryParse(expStr) : null;
+
           await database.upsertProduct(
             ProductsCompanion.insert(
               id: prod['id'] as String,
@@ -163,6 +166,8 @@ class SyncQueueWorker {
               taxRate: Value((prod['taxRate'] as num?)?.toDouble() ?? 0.0),
               hsnCode: Value(prod['hsnCode'] as String?),
               minStockAlert: Value((prod['minStockAlert'] as num?)?.toDouble() ?? 5.0),
+              expiryDate: Value(expDate),
+              batchNumber: Value(prod['batchNumber'] as String?),
               updatedAt: DateTime.now(),
             ),
           );

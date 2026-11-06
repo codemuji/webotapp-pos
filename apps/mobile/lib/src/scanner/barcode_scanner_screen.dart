@@ -141,11 +141,31 @@ class BarcodeScannerScreenState extends ConsumerState<BarcodeScannerScreen> {
       if (!mounted) return;
 
       if (result.status == ScanStatus.found) {
+        final prod = result.product!;
+        final isExpired = prod.expiryDate != null && prod.expiryDate!.isBefore(DateTime.now());
+
         setState(() {
-          _scanFeedbackMessage = '✓ Added ${result.product!.name} (₹${result.product!.sellingPrice.toStringAsFixed(2)})';
-          _isFeedbackSuccess = true;
+          if (isExpired) {
+            _scanFeedbackMessage = '⚠️ EXPIRED ITEM: ${prod.name} (Expired ${prod.expiryDate!.day}/${prod.expiryDate!.month}/${prod.expiryDate!.year})';
+            _isFeedbackSuccess = false;
+          } else {
+            _scanFeedbackMessage = '✓ Added ${prod.name} (₹${prod.sellingPrice.toStringAsFixed(2)})';
+            _isFeedbackSuccess = true;
+          }
         });
         _scheduleFeedbackDismiss();
+
+        if (isExpired) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('⚠️ WARNING: "${prod.name}" is EXPIRED (${prod.expiryDate!.day}/${prod.expiryDate!.month}/${prod.expiryDate!.year})!'),
+              backgroundColor: const Color(0xFFEF4444),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
       } else if (result.status == ScanStatus.notFound) {
         setState(() {
           _scanFeedbackMessage = '⚠️ Barcode "$cleanBarcode" not found in catalog';

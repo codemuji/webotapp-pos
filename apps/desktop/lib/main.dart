@@ -7,6 +7,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sync_protocol/sync_protocol.dart';
 import 'src/backup/backup_restore_screen.dart';
+import 'src/catalog/expiry_tracker_screen.dart';
+import 'src/catalog/low_stock_screen.dart';
 import 'src/catalog/product_catalog_screen.dart';
 import 'src/dashboard/admin_dashboard_screen.dart';
 import 'src/employees/employee_management_screen.dart';
@@ -105,6 +107,28 @@ class AdminShellView extends ConsumerStatefulWidget {
 
 class _AdminShellViewState extends ConsumerState<AdminShellView> {
   int _selectedIndex = 0;
+  int _lowStockAlertCount = 0;
+  int _expiringAlertCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAlertCounts();
+  }
+
+  Future<void> _loadAlertCounts() async {
+    final db = ref.read(adminDatabaseProvider);
+    try {
+      final low = await db.getLowStockProducts();
+      final expiring = await db.getExpiringProducts(days: 30);
+      if (mounted) {
+        setState(() {
+          _lowStockAlertCount = low.length;
+          _expiringAlertCount = expiring.length;
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -118,6 +142,8 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
       ),
       SalesTransactionsScreen(database: db),
       ProductCatalogScreen(database: db),
+      LowStockScreen(database: db),
+      ExpiryTrackerScreen(database: db),
       EmployeeManagementScreen(database: db),
       SyncServerScreen(database: db, storeName: 'WebotApp Store', server: server),
       BackupRestoreScreen(database: db, isSimulationMode: true),
@@ -128,7 +154,10 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
         children: [
           NavigationRail(
             selectedIndex: _selectedIndex,
-            onDestinationSelected: (idx) => setState(() => _selectedIndex = idx),
+            onDestinationSelected: (idx) {
+              setState(() => _selectedIndex = idx);
+              _loadAlertCounts();
+            },
             labelType: NavigationRailLabelType.all,
             leading: Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),
@@ -187,33 +216,63 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
                 ],
               ),
             ),
-            destinations: const [
-              NavigationRailDestination(
+            destinations: [
+              const NavigationRailDestination(
                 icon: Icon(Icons.dashboard_outlined),
                 selectedIcon: Icon(Icons.dashboard),
                 label: Text('Dashboard'),
               ),
-              NavigationRailDestination(
+              const NavigationRailDestination(
                 icon: Icon(Icons.receipt_long_outlined),
                 selectedIcon: Icon(Icons.receipt_long_rounded),
                 label: Text('Sales'),
               ),
-              NavigationRailDestination(
+              const NavigationRailDestination(
                 icon: Icon(Icons.inventory_2_outlined),
                 selectedIcon: Icon(Icons.inventory_2),
                 label: Text('Catalog'),
               ),
               NavigationRailDestination(
+                icon: Badge(
+                  isLabelVisible: _lowStockAlertCount > 0,
+                  backgroundColor: const Color(0xFFEF4444),
+                  label: Text('$_lowStockAlertCount'),
+                  child: const Icon(Icons.warning_amber_rounded),
+                ),
+                selectedIcon: Badge(
+                  isLabelVisible: _lowStockAlertCount > 0,
+                  backgroundColor: const Color(0xFFEF4444),
+                  label: Text('$_lowStockAlertCount'),
+                  child: const Icon(Icons.warning_rounded),
+                ),
+                label: const Text('Low Stock'),
+              ),
+              NavigationRailDestination(
+                icon: Badge(
+                  isLabelVisible: _expiringAlertCount > 0,
+                  backgroundColor: const Color(0xFFF97316),
+                  label: Text('$_expiringAlertCount'),
+                  child: const Icon(Icons.event_busy_outlined),
+                ),
+                selectedIcon: Badge(
+                  isLabelVisible: _expiringAlertCount > 0,
+                  backgroundColor: const Color(0xFFF97316),
+                  label: Text('$_expiringAlertCount'),
+                  child: const Icon(Icons.event_busy_rounded),
+                ),
+                label: const Text('Expiry'),
+              ),
+              const NavigationRailDestination(
                 icon: Icon(Icons.badge_outlined),
                 selectedIcon: Icon(Icons.badge),
                 label: Text('Employees'),
               ),
-              NavigationRailDestination(
+              const NavigationRailDestination(
                 icon: Icon(Icons.sync_rounded),
                 selectedIcon: Icon(Icons.sync),
                 label: Text('Terminals'),
               ),
-              NavigationRailDestination(
+              const NavigationRailDestination(
                 icon: Icon(Icons.backup_outlined),
                 selectedIcon: Icon(Icons.backup),
                 label: Text('Backups'),

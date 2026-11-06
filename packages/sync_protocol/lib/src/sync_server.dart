@@ -141,6 +141,8 @@ class SyncServer {
                     'taxRate': p.taxRate,
                     'hsnCode': p.hsnCode,
                     'minStockAlert': p.minStockAlert,
+                    'expiryDate': p.expiryDate?.toIso8601String(),
+                    'batchNumber': p.batchNumber,
                   })
               .toList(),
           'categories': categories

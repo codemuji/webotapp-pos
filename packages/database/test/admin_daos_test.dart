@@ -117,5 +117,101 @@ void main() {
       expect(metrics.cashierBreakdown['emp-101'], equals(100.0));
       expect(metrics.cashierBreakdown['emp-102'], equals(200.0));
     });
+
+    test('getLowStockProducts retrieves products whose stockQuantity <= minStockAlert', () async {
+      await db.upsertProduct(
+        ProductsCompanion.insert(
+          id: 'p-bread',
+          name: 'Whole Wheat Bread',
+          sellingPrice: 40.0,
+          stockQuantity: const Value(2.0),
+          minStockAlert: const Value(5.0),
+          updatedAt: DateTime.now(),
+        ),
+      );
+      await db.upsertProduct(
+        ProductsCompanion.insert(
+          id: 'p-flour',
+          name: 'Atta Flour 5kg',
+          sellingPrice: 280.0,
+          stockQuantity: const Value(20.0),
+          minStockAlert: const Value(5.0),
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      final lowStock = await db.getLowStockProducts();
+      expect(lowStock.length, equals(1));
+      expect(lowStock.first.id, equals('p-bread'));
+    });
+
+    test('getExpiringProducts and getExpiredProducts filter by cutoff and expiration dates', () async {
+      final now = DateTime.now();
+      // Expired 2 days ago
+      await db.upsertProduct(
+        ProductsCompanion.insert(
+          id: 'p-milk-expired',
+          name: 'Fresh Cow Milk 500ml',
+          sellingPrice: 32.0,
+          expiryDate: Value(now.subtract(const Duration(days: 2))),
+          updatedAt: now,
+        ),
+      );
+      // Expiring in 5 days
+      await db.upsertProduct(
+        ProductsCompanion.insert(
+          id: 'p-yogurt-soon',
+          name: 'Greek Yogurt 200g',
+          sellingPrice: 65.0,
+          expiryDate: Value(now.add(const Duration(days: 5))),
+          updatedAt: now,
+        ),
+      );
+      // Expiring in 60 days
+      await db.upsertProduct(
+        ProductsCompanion.insert(
+          id: 'p-rice-safe',
+          name: 'Basmati Rice 1kg',
+          sellingPrice: 120.0,
+          expiryDate: Value(now.add(const Duration(days: 60))),
+          updatedAt: now,
+        ),
+      );
+
+      final expired = await db.getExpiredProducts();
+      expect(expired.length, equals(1));
+      expect(expired.first.id, equals('p-milk-expired'));
+
+      final expiring30d = await db.getExpiringProducts(days: 30);
+      expect(expiring30d.length, equals(2)); // Both expired and expiring in 5 days
+      expect(expiring30d.any((p) => p.id == 'p-yogurt-soon'), isTrue);
+    });
+
+    test('recordStockAdjustment updates stockQuantity and logs inventory movement', () async {
+      await db.upsertProduct(
+        ProductsCompanion.insert(
+          id: 'p-oil',
+          name: 'Mustard Oil 1L',
+          sellingPrice: 160.0,
+          stockQuantity: const Value(10.0),
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      // Restock +15 units
+      await db.recordStockAdjustment(
+        productId: 'p-oil',
+        deltaQuantity: 15.0,
+        reason: 'restock',
+      );
+
+      var p = await (db.select(db.products)..where((t) => t.id.equals('p-oil'))).getSingle();
+      expect(p.stockQuantity, equals(25.0));
+
+      final movements = await db.select(db.inventoryMovements).get();
+      expect(movements.length, equals(1));
+      expect(movements.first.reason, equals('restock'));
+      expect(movements.first.deltaQuantity, equals(15.0));
+    });
   });
 }
