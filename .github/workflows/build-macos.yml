@@ -40,26 +40,26 @@ jobs:
 
       - name: Create Native macOS DMG Installer & Zip Archive
         run: |
-          mkdir -p dist
-          APP_DIR="apps/desktop/build/macos/Build/Products/Release"
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          APP_DIR="$GITHUB_WORKSPACE/apps/desktop/build/macos/Build/Products/Release"
           APP_NAME="WebotApp Departmental POS.app"
           
           # 1. Create portable zip archive
           echo "Packaging standalone macOS zip archive..."
           cd "$APP_DIR"
-          zip -r -y ../../../../../../dist/WebotApp-Departmental-POS-macOS-v1.0.0.zip "$APP_NAME"
-          cd ../../../../../..
+          zip -r -y "$GITHUB_WORKSPACE/dist/WebotApp-Departmental-POS-macOS-v1.0.0.zip" "$APP_NAME"
+          cd "$GITHUB_WORKSPACE"
 
           # 2. Build native Apple Disk Image (DMG) with drag-and-drop /Applications shortcut
           echo "Building native macOS DMG installer..."
           mkdir -p dmg_staging
           cp -R "$APP_DIR/$APP_NAME" dmg_staging/
           ln -s /Applications dmg_staging/Applications
-          hdiutil create -volname "WebotApp Departmental POS" -srcfolder dmg_staging -ov -format UDZO dist/WebotApp-Departmental-POS-v1.0.0.dmg
+          hdiutil create -volname "WebotApp Departmental POS" -srcfolder dmg_staging -ov -format UDZO "$GITHUB_WORKSPACE/dist/WebotApp-Departmental-POS-v1.0.0.dmg"
           rm -rf dmg_staging
 
           echo "Generated distribution files in dist:"
-          ls -lh dist/
+          ls -lh "$GITHUB_WORKSPACE/dist"
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
