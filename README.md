@@ -15,7 +15,8 @@ Official production binaries for **v1.0.0** are available on the [Releases page]
 
 * **Windows Installer**: [`WebotApp-Departmental-POS-Setup-v1.0.0.exe`](https://github.com/webotapp-academy/webotapp-pos/releases/download/v1.0.0/WebotApp-Departmental-POS-Setup-v1.0.0.exe) (Setup wizard, desktop shortcut, uninstaller)
 * **Windows Portable**: [`WebotApp-Departmental-POS-Windows-Portable-v1.0.0.zip`](https://github.com/webotapp-academy/webotapp-pos/releases/download/v1.0.0/WebotApp-Departmental-POS-Windows-Portable-v1.0.0.zip) (Standalone folder)
-* **macOS Desktop**: [`WebotApp-Departmental-POS-macOS-v1.0.0.zip`](https://github.com/webotapp-academy/webotapp-pos/releases/download/v1.0.0/WebotApp-Departmental-POS-macOS-v1.0.0.zip) (macOS 12+ Universal for Apple Silicon & Intel)
+* **macOS Apple DMG Installer**: [`WebotApp-Departmental-POS-v1.0.0.dmg`](https://github.com/webotapp-academy/webotapp-pos/releases/download/v1.0.0/WebotApp-Departmental-POS-v1.0.0.dmg) (Native Apple Disk Image installer with drag-to-Applications shortcut)
+* **macOS Portable Archive**: [`WebotApp-Departmental-POS-macOS-v1.0.0.zip`](https://github.com/webotapp-academy/webotapp-pos/releases/download/v1.0.0/WebotApp-Departmental-POS-macOS-v1.0.0.zip) (Standalone `.app` bundle)
 * **Android Cashier App**: [`WebotApp-Departmental-POS-Android-v1.0.0.apk`](https://github.com/webotapp-academy/webotapp-pos/releases/download/v1.0.0/WebotApp-Departmental-POS-Android-v1.0.0.apk) (Android 7.0+)
 
 ---

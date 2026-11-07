@@ -63,3 +63,4 @@ if command -v gh &> /dev/null; then
   gh release upload v1.0.0 "$DIST_DIR/$DMG_NAME" "$DIST_DIR/$ZIP_NAME" --clobber || true
   echo "✓ Uploaded to GitHub Release v1.0.0"
 fi
+
