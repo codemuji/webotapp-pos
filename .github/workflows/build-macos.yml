@@ -1,4 +1,4 @@
-name: Build macOS Release
+name: Build & Release macOS DMG
 
 on:
   workflow_dispatch:
@@ -6,8 +6,12 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
-  build-macos:
+  build-macos-dmg:
+    name: Build macOS DMG Installer & Portable Archive
     runs-on: macos-latest
     steps:
       - name: Checkout repository
@@ -34,23 +38,43 @@ jobs:
           cd apps/desktop
           flutter build macos --release
 
-      - name: Package macOS App Bundle
+      - name: Create Native macOS DMG Installer & Zip Archive
         run: |
           mkdir -p dist
-          cd apps/desktop/build/macos/Build/Products/Release
-          zip -r -y ../../../../../../dist/WebotApp-Departmental-POS-macOS-v1.0.0.zip "WebotApp Departmental POS.app"
-          ls -lh ../../../../../../dist
+          APP_DIR="apps/desktop/build/macos/Build/Products/Release"
+          APP_NAME="WebotApp Departmental POS.app"
+          
+          # 1. Create portable zip archive
+          echo "Packaging standalone macOS zip archive..."
+          cd "$APP_DIR"
+          zip -r -y ../../../../../../dist/WebotApp-Departmental-POS-macOS-v1.0.0.zip "$APP_NAME"
+          cd ../../../../../..
 
-      - name: Upload macOS Artifact
+          # 2. Build native Apple Disk Image (DMG) with drag-and-drop /Applications shortcut
+          echo "Building native macOS DMG installer..."
+          mkdir -p dmg_staging
+          cp -R "$APP_DIR/$APP_NAME" dmg_staging/
+          ln -s /Applications dmg_staging/Applications
+          hdiutil create -volname "WebotApp Departmental POS" -srcfolder dmg_staging -ov -format UDZO dist/WebotApp-Departmental-POS-v1.0.0.dmg
+          rm -rf dmg_staging
+
+          echo "Generated distribution files in dist:"
+          ls -lh dist/
+
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: WebotApp-Departmental-POS-macOS
-          path: dist/WebotApp-Departmental-POS-macOS-v1.0.0.zip
+          path: |
+            dist/WebotApp-Departmental-POS-v1.0.0.dmg
+            dist/WebotApp-Departmental-POS-macOS-v1.0.0.zip
 
-      - name: Publish to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/WebotApp-Departmental-POS-macOS-v1.0.0.zip
+      - name: Publish DMG & ZIP to GitHub Release v1.0.0
+        run: |
+          echo "Attaching macOS DMG and ZIP installer to GitHub Release v1.0.0..."
+          gh release upload v1.0.0 \
+            dist/WebotApp-Departmental-POS-v1.0.0.dmg \
+            dist/WebotApp-Departmental-POS-macOS-v1.0.0.zip \
+            --clobber
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
