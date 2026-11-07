@@ -15,6 +15,7 @@ Official production binaries for **v1.0.0** are available on the [Releases page]
 
 * **Windows Installer**: [`WebotApp-Departmental-POS-Setup-v1.0.0.exe`](https://github.com/webotapp-academy/webotapp-pos/releases/download/v1.0.0/WebotApp-Departmental-POS-Setup-v1.0.0.exe) (Setup wizard, desktop shortcut, uninstaller)
 * **Windows Portable**: [`WebotApp-Departmental-POS-Windows-Portable-v1.0.0.zip`](https://github.com/webotapp-academy/webotapp-pos/releases/download/v1.0.0/WebotApp-Departmental-POS-Windows-Portable-v1.0.0.zip) (Standalone folder)
+* **macOS Desktop**: [`WebotApp-Departmental-POS-macOS-v1.0.0.zip`](https://github.com/webotapp-academy/webotapp-pos/releases/download/v1.0.0/WebotApp-Departmental-POS-macOS-v1.0.0.zip) (macOS 12+ Universal for Apple Silicon & Intel)
 * **Android Cashier App**: [`WebotApp-Departmental-POS-Android-v1.0.0.apk`](https://github.com/webotapp-academy/webotapp-pos/releases/download/v1.0.0/WebotApp-Departmental-POS-Android-v1.0.0.apk) (Android 7.0+)
 
 ---
@@ -190,6 +191,15 @@ cd apps/mobile && flutter test
    & "C:\Users\<user>\AppData\Local\Programs\Inno Setup 6\ISCC.exe" packaging/windows/inno_setup.iss
    ```
    The installer executable will be generated at `dist/WebotApp-Departmental-POS-Setup-v1.0.0.exe`.
+
+### macOS App Bundle (`.app` / `.zip`)
+
+```bash
+cd apps/desktop
+flutter build macos --release
+```
+The application bundle will be created at `apps/desktop/build/macos/Build/Products/Release/WebotApp Departmental POS.app`.
+You can also trigger automated cloud builds via the included [GitHub Actions workflow](.github/workflows/build-macos.yml).
 
 ### Android APK (`.apk`)
 
