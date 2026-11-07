@@ -213,5 +213,75 @@ void main() {
       expect(movements.first.reason, equals('restock'));
       expect(movements.first.deltaQuantity, equals(15.0));
     });
+
+    test('bulkDeleteProducts unlinks foreign keys and removes selected products', () async {
+      final now = DateTime.now();
+      await db.upsertProduct(
+        ProductsCompanion.insert(
+          id: 'p-del-1',
+          name: 'Item 1',
+          sellingPrice: 10.0,
+          updatedAt: now,
+        ),
+      );
+      await db.upsertProduct(
+        ProductsCompanion.insert(
+          id: 'p-del-2',
+          name: 'Item 2',
+          sellingPrice: 20.0,
+          updatedAt: now,
+        ),
+      );
+      await db.upsertProduct(
+        ProductsCompanion.insert(
+          id: 'p-keep',
+          name: 'Item Keep',
+          sellingPrice: 30.0,
+          updatedAt: now,
+        ),
+      );
+
+      final count = await db.bulkDeleteProducts(['p-del-1', 'p-del-2']);
+      expect(count, equals(2));
+
+      final remaining = await db.getAllProducts();
+      expect(remaining.length, equals(1));
+      expect(remaining.first.id, equals('p-keep'));
+    });
+
+    test('bulkDeleteInvoices removes invoices and line items atomically', () async {
+      final now = DateTime.now();
+      await db.into(db.invoices).insert(
+            InvoicesCompanion.insert(
+              id: 'inv-del-1',
+              invoiceNumber: 'INV-DEL-1',
+              deviceId: 'term-01',
+              employeeId: 'emp-101',
+              subtotal: 50.0,
+              totalAmount: 50.0,
+              paymentMethod: 'cash',
+              createdAt: now,
+            ),
+          );
+      await db.into(db.invoiceItems).insert(
+            InvoiceItemsCompanion.insert(
+              id: 'item-del-1',
+              invoiceId: 'inv-del-1',
+              productName: 'Sample',
+              quantity: 1,
+              unitPrice: 50.0,
+              lineTotal: 50.0,
+            ),
+          );
+
+      final count = await db.bulkDeleteInvoices(['inv-del-1']);
+      expect(count, equals(1));
+
+      final remainingInvs = await db.getAllInvoices();
+      expect(remainingInvs, isEmpty);
+
+      final remainingItems = await db.select(db.invoiceItems).get();
+      expect(remainingItems, isEmpty);
+    });
   });
 }

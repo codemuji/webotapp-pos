@@ -420,6 +420,108 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
     );
   }
 
+  void _confirmDeleteSingleProduct(Product product) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.delete_forever_rounded, color: Color(0xFFEF4444), size: 24),
+            const SizedBox(width: 10),
+            Expanded(child: Text('Delete "${product.name}"?')),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to permanently delete "${product.name}" (${product.barcode ?? product.id})? This will remove its inventory history and cannot be undone.',
+          style: const TextStyle(color: Color(0xFF475569), fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await widget.database.deleteProduct(product.id);
+              _selectedProductIds.remove(product.id);
+              await _loadData();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('✓ Deleted product "${product.name}"'),
+                    backgroundColor: const Color(0xFF0F172A),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            child: const Text('Delete Product'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _bulkDeleteSelectedProducts() {
+    final count = _selectedProductIds.length;
+    if (count == 0) return;
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.delete_sweep_rounded, color: Color(0xFFEF4444), size: 24),
+            const SizedBox(width: 10),
+            Text('Bulk Delete $count Products?'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to permanently delete $count selected products? Any historical stock logs for these items will be purged, and pack-size variants will be unlinked. This cannot be undone.',
+          style: const TextStyle(color: Color(0xFF475569), fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              final toDelete = _selectedProductIds.toList();
+              await widget.database.bulkDeleteProducts(toDelete);
+              _selectedProductIds.clear();
+              await _loadData();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('✓ Successfully deleted $count products'),
+                    backgroundColor: const Color(0xFF0F172A),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            child: Text('Delete $count Products'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // --- Category Dialog ---
   void _showAddCategoryDialog([Category? existing]) {
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
@@ -1331,30 +1433,55 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFBFDBFE)),
                       ),
-                      child: Row(
+                      child: Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 12,
+                        runSpacing: 8,
                         children: [
-                          const Icon(Icons.check_circle_rounded, color: Color(0xFF2563EB), size: 20),
-                          const SizedBox(width: 10),
-                          Text(
-                            '${_selectedProductIds.length} products selected for batch operations',
-                            style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF1E40AF), fontSize: 13),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.check_circle_rounded, color: Color(0xFF2563EB), size: 20),
+                              const SizedBox(width: 10),
+                              Text(
+                                '${_selectedProductIds.length} products selected for batch operations',
+                                style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF1E40AF), fontSize: 13),
+                              ),
+                            ],
                           ),
-                          const Spacer(),
-                          ElevatedButton.icon(
-                            onPressed: _printBatchLabels,
-                            icon: const Icon(Icons.print_rounded, size: 16),
-                            label: Text('Print ${_selectedProductIds.length} Shelf Labels'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2563EB),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          TextButton(
-                            onPressed: () => setState(() => _selectedProductIds.clear()),
-                            child: const Text('Clear Selection'),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: _printBatchLabels,
+                                icon: const Icon(Icons.print_rounded, size: 14),
+                                label: Text('Print ${_selectedProductIds.length} Shelf Labels'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2563EB),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton.icon(
+                                onPressed: _bulkDeleteSelectedProducts,
+                                icon: const Icon(Icons.delete_outline_rounded, size: 14),
+                                label: Text('Delete (${_selectedProductIds.length})'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFEF4444),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              TextButton(
+                                onPressed: () => setState(() => _selectedProductIds.clear()),
+                                child: const Text('Clear Selection'),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -1504,10 +1631,10 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
           const Expanded(flex: 2, child: Text('Barcodes / SKU', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF475569)))),
           const Expanded(flex: 2, child: Text('Category & Tax', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF475569)))),
           const Expanded(flex: 2, child: Text('Selling Price', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF475569)))),
-          const Expanded(flex: 2, child: Text('Purchase Price', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF475569)))),
+          const Expanded(flex: 1, child: Text('Purchase Price', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF475569)))),
           const Expanded(flex: 2, child: Text('Stock Level', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF475569)))),
           const Expanded(flex: 1, child: Text('Status', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF475569)))),
-          const Expanded(flex: 4, child: Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF475569)), textAlign: TextAlign.right)),
+          const Expanded(flex: 5, child: Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF475569)), textAlign: TextAlign.right)),
         ],
       ),
     );
@@ -1592,7 +1719,7 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
 
             // Barcodes & SKU
             Expanded(
-              flex: 3,
+              flex: 2,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -1601,9 +1728,12 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
                     children: [
                       const Icon(Icons.qr_code_2_rounded, size: 14, color: Color(0xFF64748B)),
                       const SizedBox(width: 4),
-                      Text(
-                        p.barcode ?? '-',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontFamily: 'monospace'),
+                      Flexible(
+                        child: Text(
+                          p.barcode ?? '-',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontFamily: 'monospace'),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
@@ -1651,7 +1781,7 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
 
             // Purchase Price
             Expanded(
-              flex: 2,
+              flex: 1,
               child: Text(
                 p.purchasePrice != null ? '₹${p.purchasePrice!.toStringAsFixed(2)}' : '-',
                 style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
@@ -1736,40 +1866,47 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> {
               ),
             ),
 
-            // Quick Actions (Print Sticker, Quick Restock, Edit, Toggle)
+            // Quick Actions (Print Sticker, Quick Restock, Edit, Toggle, Delete)
             Expanded(
-              flex: 4,
+              flex: 5,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   IconButton(
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                    icon: const Icon(Icons.print_rounded, size: 18, color: Color(0xFF0284C7)),
+                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    icon: const Icon(Icons.print_rounded, size: 16, color: Color(0xFF0284C7)),
                     tooltip: 'Print Thermal Barcode Sticker',
                     onPressed: () => _printBarcodeSticker(p),
                   ),
                   IconButton(
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                    icon: const Icon(Icons.add_shopping_cart_rounded, size: 18, color: Color(0xFF10B981)),
+                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    icon: const Icon(Icons.add_shopping_cart_rounded, size: 16, color: Color(0xFF10B981)),
                     tooltip: 'Quick Restock / Stock Adjust',
                     onPressed: () => _showQuickStockDialog(p),
                   ),
                   IconButton(
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                    icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF64748B)),
+                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF64748B)),
                     tooltip: 'Edit Product & Pack Size',
                     onPressed: () => _showProductDialog(p),
                   ),
                   IconButton(
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
+                    tooltip: 'Delete Product',
+                    onPressed: () => _confirmDeleteSingleProduct(p),
+                  ),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                     key: Key('toggle_active_${p.id}'),
                     icon: Icon(
                       p.isActive ? Icons.toggle_on : Icons.toggle_off,
-                      size: 26,
+                      size: 24,
                       color: p.isActive ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
                     ),
                     tooltip: p.isActive ? 'Deactivate' : 'Activate',

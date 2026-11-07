@@ -359,6 +359,26 @@ class AppDatabase extends _$AppDatabase {
     return into(products).insertOnConflictUpdate(product);
   }
 
+  /// Permanently deletes a single product and associated movements, safely unlinking historical invoice items.
+  Future<int> deleteProduct(String productId) {
+    return bulkDeleteProducts([productId]);
+  }
+
+  /// Bulk deletes a list of products by ID, unlinking variants and historical invoices atomically.
+  Future<int> bulkDeleteProducts(List<String> productIds) {
+    if (productIds.isEmpty) return Future.value(0);
+    return transaction(() async {
+      await (update(products)..where((tbl) => tbl.parentProductId.isIn(productIds))).write(
+        const ProductsCompanion(parentProductId: Value(null)),
+      );
+      await (update(invoiceItems)..where((tbl) => tbl.productId.isIn(productIds))).write(
+        const InvoiceItemsCompanion(productId: Value(null)),
+      );
+      await (delete(inventoryMovements)..where((tbl) => tbl.productId.isIn(productIds))).go();
+      return (delete(products)..where((tbl) => tbl.id.isIn(productIds))).go();
+    });
+  }
+
   Future<void> toggleProductActive(String productId, bool isActive) {
     return (update(products)..where((tbl) => tbl.id.equals(productId))).write(
       ProductsCompanion(
@@ -555,6 +575,21 @@ class AppDatabase extends _$AppDatabase {
 
   Future<List<InvoiceWithItems>> getRecentInvoicesWithItems({int limit = 10}) {
     return getAllInvoicesWithItems(limit: limit);
+  }
+
+  /// Permanently deletes an invoice and its line items.
+  Future<int> deleteInvoice(String invoiceId) {
+    return bulkDeleteInvoices([invoiceId]);
+  }
+
+  /// Bulk deletes invoices and their associated line items atomically.
+  Future<int> bulkDeleteInvoices(List<String> invoiceIds) {
+    if (invoiceIds.isEmpty) return Future.value(0);
+    return transaction(() async {
+      await (delete(invoiceItems)..where((tbl) => tbl.invoiceId.isIn(invoiceIds))).go();
+      await (delete(inventoryMovements)..where((tbl) => tbl.referenceId.isIn(invoiceIds))).go();
+      return (delete(invoices)..where((tbl) => tbl.id.isIn(invoiceIds))).go();
+    });
   }
 }
 

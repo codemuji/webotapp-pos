@@ -28,6 +28,7 @@ class _ExpiryTrackerScreenState extends State<ExpiryTrackerScreen> {
   Timer? _searchDebounce;
   String? _selectedCategoryId;
   String _filterMode = 'all'; // 'all', 'expired', '7_days', '30_days'
+  final Set<String> _selectedProductIds = {};
 
   final DateFormat _dateFormat = DateFormat('dd MMM yyyy');
   final NumberFormat _currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
@@ -350,6 +351,123 @@ class _ExpiryTrackerScreenState extends State<ExpiryTrackerScreen> {
     );
   }
 
+  void _confirmBulkWriteOff() {
+    final count = _selectedProductIds.length;
+    if (count == 0) return;
+
+    final selected = _allProductsWithExpiry.where((p) => _selectedProductIds.contains(p.id)).toList();
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.delete_forever_rounded, color: Color(0xFFEF4444), size: 24),
+            const SizedBox(width: 10),
+            Text('Bulk Write-Off $count Products?'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to write off and discard all on-hand stock for $count selected products? Stock levels will be reduced to 0 and waste disposal will be logged in the audit trail.',
+          style: const TextStyle(color: Color(0xFF475569), fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              for (final p in selected) {
+                if (p.stockQuantity > 0) {
+                  await widget.database.applyInventoryDelta(
+                    movementId: 'writeoff-${DateTime.now().microsecondsSinceEpoch}-${p.id}',
+                    productId: p.id,
+                    deltaQuantity: -p.stockQuantity,
+                    reason: 'waste_write_off',
+                    referenceId: 'bulk_expiry_discard',
+                  );
+                }
+              }
+              _selectedProductIds.clear();
+              await _loadData();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('✓ Successfully logged waste write-off for $count products'),
+                    backgroundColor: const Color(0xFFEF4444),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            child: Text('Confirm Write-Off ($count)'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmBulkDeleteExpiryItems() {
+    final count = _selectedProductIds.length;
+    if (count == 0) return;
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.delete_sweep_rounded, color: Color(0xFFEF4444), size: 24),
+            const SizedBox(width: 10),
+            Text('Permanently Delete $count Products?'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to permanently delete $count selected products from the store catalog? All inventory movements will be deleted and this action cannot be undone.',
+          style: const TextStyle(color: Color(0xFF475569), fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              final toDelete = _selectedProductIds.toList();
+              await widget.database.bulkDeleteProducts(toDelete);
+              _selectedProductIds.clear();
+              await _loadData();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('✓ Successfully purged $count products from catalog'),
+                    backgroundColor: const Color(0xFF0F172A),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            child: Text('Delete $count Products'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _exportShelfPullCsv() async {
     HapticFeedback.lightImpact();
     final items = _filteredProducts;
@@ -573,6 +691,58 @@ class _ExpiryTrackerScreenState extends State<ExpiryTrackerScreen> {
             ),
             const SizedBox(height: 14),
 
+            // Batch Selection Banner (when expiring items are selected)
+            if (_selectedProductIds.isNotEmpty) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFECACA)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle_rounded, color: Color(0xFFDC2626), size: 20),
+                    const SizedBox(width: 10),
+                    Text(
+                      '${_selectedProductIds.length} expiring item(s) selected',
+                      style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF991B1B), fontSize: 13),
+                    ),
+                    const Spacer(),
+                    ElevatedButton.icon(
+                      onPressed: _confirmBulkWriteOff,
+                      icon: const Icon(Icons.delete_forever_rounded, size: 16),
+                      label: Text('Bulk Write-Off (${_selectedProductIds.length})'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton.icon(
+                      onPressed: _confirmBulkDeleteExpiryItems,
+                      icon: const Icon(Icons.delete_sweep_rounded, size: 16),
+                      label: Text('Delete from Catalog (${_selectedProductIds.length})'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFB91C1C),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    TextButton(
+                      onPressed: () => setState(() => _selectedProductIds.clear()),
+                      child: const Text('Clear Selection'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // Expiry Table View
             Expanded(
               child: Container(
@@ -653,12 +823,31 @@ class _ExpiryTrackerScreenState extends State<ExpiryTrackerScreen> {
                     ? 'EXPIRES IN $diffDays DAYS'
                     : '$diffDays DAYS LEFT';
 
+    final isSelected = _selectedProductIds.contains(p.id);
+
     return RepaintBoundary(
       key: ValueKey('expiry_row_${p.id}'),
-      child: Padding(
+      child: Container(
+        color: isSelected ? const Color(0xFFFEF2F2) : null,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
         children: [
+          SizedBox(
+            width: 32,
+            child: Checkbox(
+              value: isSelected,
+              onChanged: (val) {
+                setState(() {
+                  if (val == true) {
+                    _selectedProductIds.add(p.id);
+                  } else {
+                    _selectedProductIds.remove(p.id);
+                  }
+                });
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
           // Product name and batch
           Expanded(
             flex: 3,

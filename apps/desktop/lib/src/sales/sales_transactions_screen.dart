@@ -31,6 +31,7 @@ class _SalesTransactionsScreenState extends State<SalesTransactionsScreen> {
   Timer? _searchDebounce;
   String _selectedDateFilter = 'all'; // all, today, yesterday, 7days, 30days
   String _selectedPaymentFilter = 'all'; // all, cash, upi_qr, card
+  final Set<String> _selectedInvoiceIds = {};
 
   final DateFormat _dateFormat = DateFormat('dd MMM yyyy, hh:mm a');
 
@@ -150,6 +151,108 @@ class _SalesTransactionsScreenState extends State<SalesTransactionsScreen> {
         ),
       );
     }
+  }
+
+  void _confirmDeleteSingleSale(InvoiceWithItems sale) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.delete_forever_rounded, color: Color(0xFFEF4444), size: 24),
+            const SizedBox(width: 10),
+            Text('Delete Invoice ${sale.invoice.invoiceNumber}?'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to permanently delete sale invoice ${sale.invoice.invoiceNumber} (Total: ₹${sale.invoice.totalAmount.toStringAsFixed(2)})? This will remove all associated line items and cannot be undone.',
+          style: const TextStyle(color: Color(0xFF475569), fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await widget.database.deleteInvoice(sale.invoice.id);
+              _selectedInvoiceIds.remove(sale.invoice.id);
+              await _loadSales();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('✓ Deleted invoice ${sale.invoice.invoiceNumber}'),
+                    backgroundColor: const Color(0xFF0F172A),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            child: const Text('Delete Invoice'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmBulkDeleteSales() {
+    final count = _selectedInvoiceIds.length;
+    if (count == 0) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.delete_sweep_rounded, color: Color(0xFFEF4444), size: 24),
+            const SizedBox(width: 10),
+            Text('Bulk Delete $count Invoices?'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to permanently delete $count selected sales transactions? This action will remove all line items and associated financial logs. This cannot be undone.',
+          style: const TextStyle(color: Color(0xFF475569), fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              final toDelete = _selectedInvoiceIds.toList();
+              await widget.database.bulkDeleteInvoices(toDelete);
+              _selectedInvoiceIds.clear();
+              await _loadSales();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('✓ Successfully deleted $count sales invoice(s)'),
+                    backgroundColor: const Color(0xFF0F172A),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            child: Text('Delete $count Invoices'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -343,6 +446,46 @@ class _SalesTransactionsScreenState extends State<SalesTransactionsScreen> {
                       ),
                       const SizedBox(height: 16),
 
+                      // Batch Selection Banner (when invoices are selected)
+                      if (_selectedInvoiceIds.isNotEmpty) ...[
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFFECACA)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.check_circle_rounded, color: Color(0xFFDC2626), size: 20),
+                              const SizedBox(width: 10),
+                              Text(
+                                '${_selectedInvoiceIds.length} sales invoice(s) selected',
+                                style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF991B1B), fontSize: 13),
+                              ),
+                              const Spacer(),
+                              ElevatedButton.icon(
+                                onPressed: _confirmBulkDeleteSales,
+                                icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                                label: Text('Delete ${_selectedInvoiceIds.length} Selected'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFEF4444),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              TextButton(
+                                onPressed: () => setState(() => _selectedInvoiceIds.clear()),
+                                child: const Text('Clear Selection'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
                       // High-Performance Virtualized Table Container
                       Expanded(
                         child: Container(
@@ -364,7 +507,7 @@ class _SalesTransactionsScreenState extends State<SalesTransactionsScreen> {
                             child: Column(
                               children: [
                                 // Sticky Table Header (Pinned at top)
-                                _buildTableHeader(),
+                                _buildTableHeader(filtered),
                                 const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
                                 // Virtualized Scrollable Rows (Only on-screen items are rendered)
                                 Expanded(
@@ -420,22 +563,40 @@ class _SalesTransactionsScreenState extends State<SalesTransactionsScreen> {
     );
   }
 
-  Widget _buildTableHeader() {
+  Widget _buildTableHeader(List<InvoiceWithItems> filtered) {
+    final allSelected = filtered.isNotEmpty && filtered.every((s) => _selectedInvoiceIds.contains(s.invoice.id));
+
     return Container(
       color: const Color(0xFFF8FAFC),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: const Row(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
         children: [
-          Expanded(flex: 3, child: Text('Invoice #', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13))),
-          Expanded(flex: 3, child: Text('Date & Time', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13))),
-          Expanded(flex: 3, child: Text('Terminal / Cashier', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13))),
-          Expanded(flex: 2, child: Text('Items', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13), textAlign: TextAlign.right)),
-          Expanded(flex: 2, child: Text('Subtotal', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13), textAlign: TextAlign.right)),
-          Expanded(flex: 2, child: Text('Offer / Disc', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13), textAlign: TextAlign.right)),
-          Expanded(flex: 2, child: Text('Total Amount', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13), textAlign: TextAlign.right)),
-          Expanded(flex: 2, child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Payment', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13)))),
-          Expanded(flex: 2, child: Text('Status', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13))),
-          Expanded(flex: 2, child: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13), textAlign: TextAlign.right)),
+          SizedBox(
+            width: 32,
+            child: Checkbox(
+              value: allSelected,
+              onChanged: (val) {
+                setState(() {
+                  if (val == true) {
+                    _selectedInvoiceIds.addAll(filtered.map((s) => s.invoice.id));
+                  } else {
+                    _selectedInvoiceIds.clear();
+                  }
+                });
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Expanded(flex: 3, child: Text('Invoice #', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13))),
+          const Expanded(flex: 3, child: Text('Date & Time', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13))),
+          const Expanded(flex: 3, child: Text('Terminal / Cashier', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13))),
+          const Expanded(flex: 2, child: Text('Items', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13), textAlign: TextAlign.right)),
+          const Expanded(flex: 2, child: Text('Subtotal', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13), textAlign: TextAlign.right)),
+          const Expanded(flex: 2, child: Text('Offer / Disc', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13), textAlign: TextAlign.right)),
+          const Expanded(flex: 2, child: Text('Total Amount', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13), textAlign: TextAlign.right)),
+          const Expanded(flex: 2, child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Payment', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13)))),
+          const Expanded(flex: 2, child: Text('Status', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13))),
+          const Expanded(flex: 3, child: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF334155), fontSize: 13), textAlign: TextAlign.right)),
         ],
       ),
     );
@@ -443,14 +604,31 @@ class _SalesTransactionsScreenState extends State<SalesTransactionsScreen> {
 
   Widget _buildSalesRow(InvoiceWithItems sale) {
     final inv = sale.invoice;
+    final isSelected = _selectedInvoiceIds.contains(inv.id);
 
     return RepaintBoundary(
       key: ValueKey('sale_row_${inv.id}'),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        color: isSelected ? const Color(0xFFFEF2F2) : Colors.white,
         child: Row(
           children: [
+            SizedBox(
+              width: 32,
+              child: Checkbox(
+                value: isSelected,
+                onChanged: (val) {
+                  setState(() {
+                    if (val == true) {
+                      _selectedInvoiceIds.add(inv.id);
+                    } else {
+                      _selectedInvoiceIds.remove(inv.id);
+                    }
+                  });
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
             // Invoice #
             Expanded(
               flex: 3,
@@ -562,7 +740,7 @@ class _SalesTransactionsScreenState extends State<SalesTransactionsScreen> {
             ),
             // Actions
             Expanded(
-              flex: 2,
+              flex: 3,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -590,6 +768,14 @@ class _SalesTransactionsScreenState extends State<SalesTransactionsScreen> {
                     },
                     tooltip: 'Print Thermal Receipt',
                     icon: const Icon(Icons.print_outlined, size: 18, color: Color(0xFF0F172A)),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    onPressed: () => _confirmDeleteSingleSale(sale),
+                    tooltip: 'Delete Sale Record',
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFEF4444)),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                   ),

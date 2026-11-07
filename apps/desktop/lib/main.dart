@@ -6,12 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sync_protocol/sync_protocol.dart';
+import 'src/auth/admin_lock_screen.dart';
 import 'src/backup/backup_restore_screen.dart';
 import 'src/catalog/expiry_tracker_screen.dart';
 import 'src/catalog/low_stock_screen.dart';
 import 'src/catalog/product_catalog_screen.dart';
 import 'src/dashboard/admin_dashboard_screen.dart';
-import 'src/employees/employee_management_screen.dart';
 import 'src/sales/sales_transactions_screen.dart';
 import 'src/sync/sync_server_screen.dart';
 import 'src/theme/webotapp_logo.dart';
@@ -87,12 +87,38 @@ void main() async {
   });
 }
 
-class GroceryPosDesktopAdminApp extends ConsumerWidget {
-  const GroceryPosDesktopAdminApp({super.key});
+class GroceryPosDesktopAdminApp extends ConsumerStatefulWidget {
+  final bool initialLocked;
+
+  const GroceryPosDesktopAdminApp({
+    super.key,
+    this.initialLocked = true,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Keep sync server alive globally
+  ConsumerState<GroceryPosDesktopAdminApp> createState() => _GroceryPosDesktopAdminAppState();
+}
+
+class _GroceryPosDesktopAdminAppState extends ConsumerState<GroceryPosDesktopAdminApp> {
+  late bool _isLocked;
+
+  @override
+  void initState() {
+    super.initState();
+    _isLocked = widget.initialLocked;
+  }
+
+  void _unlock() {
+    setState(() => _isLocked = false);
+  }
+
+  void _lock() {
+    setState(() => _isLocked = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Keep sync server alive globally in background
     ref.watch(desktopSyncServerProvider);
 
     return MaterialApp(
@@ -100,13 +126,31 @@ class GroceryPosDesktopAdminApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: WebotAppTheme.lightTheme,
       scrollBehavior: const DesktopSmoothScrollBehavior(),
-      home: const AdminShellView(),
+      home: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 250),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        child: _isLocked
+            ? AdminLockScreen(
+                key: const ValueKey('admin_lock_screen'),
+                onUnlocked: _unlock,
+              )
+            : AdminShellView(
+                key: const ValueKey('admin_shell_view'),
+                onLock: _lock,
+              ),
+      ),
     );
   }
 }
 
 class AdminShellView extends ConsumerStatefulWidget {
-  const AdminShellView({super.key});
+  final VoidCallback onLock;
+
+  const AdminShellView({
+    super.key,
+    required this.onLock,
+  });
 
   @override
   ConsumerState<AdminShellView> createState() => _AdminShellViewState();
@@ -153,7 +197,6 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
         ProductCatalogScreen(database: db),
         LowStockScreen(database: db),
         ExpiryTrackerScreen(database: db),
-        EmployeeManagementScreen(database: db),
         SyncServerScreen(database: db, storeName: 'WebotApp Store', server: server),
         BackupRestoreScreen(database: db, isSimulationMode: true),
       ];
@@ -268,22 +311,64 @@ class _AdminShellViewState extends ConsumerState<AdminShellView> {
                       ),
                       _buildSidebarItem(
                         index: 5,
-                        icon: Icons.badge_rounded,
-                        label: 'Employees',
-                      ),
-                      _buildSidebarItem(
-                        index: 6,
                         icon: Icons.sync_rounded,
                         label: 'Terminals',
                       ),
                       _buildSidebarItem(
-                        index: 7,
+                        index: 6,
                         icon: Icons.backup_rounded,
                         label: 'Backups',
                       ),
                     ],
                   ),
                 ),
+
+                // Lock Console / Logout Button
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: widget.onLock,
+                      borderRadius: BorderRadius.circular(8),
+                      hoverColor: const Color(0xFFEF4444).withOpacity(0.12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E293B),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF334155)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.lock_outline_rounded,
+                              size: 18,
+                              color: Color(0xFFF87171),
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Lock Console',
+                                style: TextStyle(
+                                  color: Color(0xFFFCA5A5),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              Icons.logout_rounded,
+                              size: 16,
+                              color: Color(0xFF94A3B8),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
 
                 // Bottom Sync Server Daemon Status Card
                 Padding(
